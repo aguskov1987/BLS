@@ -4,7 +4,7 @@ namespace BLS.Tests
 {
     /// <summary>
     /// Entities are basic building blocks of the Business Logic System. Entities contain
-    /// properties (value types) and are connected to other entities through relations. Relations
+    /// properties and are connected to other entities through relations. Relations
     /// are represented by two classes: RelatesToMany and RelatedToOne. Both should be initialized
     /// in the entity's constructor with it's (entity's) reference
     /// </summary>

@@ -42,6 +42,13 @@ namespace BLS
         /// <param name="containerName">Name of the container</param>
         /// <param name="propertyName">Name of the property of the entity for search. Must be of string type</param>
         void RegisterFullTextSearchMember(string containerName, string propertyName);
+        
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="performBackupBeforeSync"></param>
+        /// <returns>Two lists: the first contains orphan containers, the second - orphaned relations</returns>
+        Tuple<List<string>, List<string>> Synchronize(bool performBackupBeforeSync);
 
         /// <summary>
         /// Get an entity object by ID
@@ -50,7 +57,7 @@ namespace BLS
         /// <param name="id">ID of the entity object</param>
         /// <param name="containerName">Name of the container - optional</param>
         /// <returns>Entity object or null if nothing is found</returns>
-        T GetById<T>(string id, string containerName = null) where T: new();
+        T GetById<T>(string id, string containerName = null) where T: BlEntity;
 
         /// <summary>
         /// Find entity objects in a given container and a set of conditions to check
@@ -59,7 +66,7 @@ namespace BLS
         /// <param name="containerName">Name of the container</param>
         /// <param name="check">Binary expression to filter the result</param>
         /// <returns>Cursor containing the result set</returns>
-        BlStorageCursor<T> FindInContainer<T>(string containerName, Expression<Func<T, bool>> check = null) where T : new();
+        BlStorageCursor<T> FindInContainer<T>(string containerName, Expression<Func<T, bool>> check = null) where T : BlEntity;
 
         /// <summary>
         /// Find entity objects, given the container name and a term to search
@@ -72,7 +79,15 @@ namespace BLS
         /// <param name="check">Any additional filter to apply to the result of the search</param>
         /// <returns>Cursor containing the result set</returns>
         /// <remarks>The containers and search-enabled properties must be first added using the <c>this.RegisterFullTextSearchMember</c> method</remarks>
-        BlStorageCursor<T> SearchInContainer<T>(string containerName, List<string> propertiesToSearch, string term, Expression<Func<T, bool>> check = null) where T : new();
+        BlStorageCursor<T> SearchInContainer<T>(string containerName, List<string> propertiesToSearch, string term,
+            Expression<Func<T, bool>> check = null) where T : BlEntity;
+
+        /// <summary>
+        /// Get the count of entity objects in a container
+        /// </summary>
+        /// <param name="containerName">Name of the container</param>
+        /// <returns>Entity objects count</returns>
+        int GetContainerEntityCount(string containerName);
 
         /// <summary>
         /// Get all entity objects related to the specified source object
@@ -82,7 +97,7 @@ namespace BLS
         /// <param name="relationName">Name of the relation to look for</param>
         /// <param name="containerName">Name of the container of the related objects</param>
         /// <returns>Cursor containing the result set</returns>
-        BlStorageCursor<T> GetByRelation<T>(string fromId, string relationName, string containerName = null);
+        BlStorageCursor<T> GetByRelation<T>(string fromId, string relationName, string containerName = null) where T: BlEntity;
 
         /// <summary>
         /// Insert a new entity
@@ -90,8 +105,9 @@ namespace BLS
         /// <typeparam name="T"></typeparam>
         /// <param name="entity">Type of entity</param>
         /// <param name="containerName">Name if the container - optional</param>
+        /// <param name="tIdentifier">Transaction identifier in case the call is part of an initialized transaction</param>
         /// <returns></returns>
-        T InsertNewEntity<T>( T entity, string containerName = null) where T : new();
+        string InsertNewEntity<T>( T entity, string containerName = null, string tIdentifier=null) where T : BlEntity;
 
         /// <summary>
         /// Update an entity
@@ -101,16 +117,18 @@ namespace BLS
         /// <param name="newEntity">The new object to update from</param>
         /// <param name="containerName">Name of the container - optional</param>
         /// <param name="returnOld">Defaults to false but, if specified to true, return the old entity object</param>
+        /// <param name="tIdentifier">Transaction identifier in case the call is part of an initialized transaction</param>
         /// <returns>Updated or old entity object</returns>
-        T UpdateEntity<T>(string entityId, T newEntity, string containerName = null, bool returnOld = false) where T : new();
+        string UpdateEntity<T>(string entityId, T newEntity, string containerName = null, string tIdentifier = null, bool returnOld = false) where T : BlEntity;
 
         /// <summary>
         /// Remove an entity object
         /// </summary>
         /// <param name="entityId">ID of the entity object to remove</param>
         /// <param name="containerName">Name of the container - optional</param>
+        /// <param name="tIdentifier">Transaction identifier in case the call is part of an initialized transaction</param>
         /// <returns>true if removal is successful</returns>
-        bool RemoveEntity(string entityId, string containerName = null);
+        bool RemoveEntity(string entityId, string containerName = null, string tIdentifier = null);
 
         /// <summary>
         /// Insert a new relation
@@ -120,12 +138,13 @@ namespace BLS
         /// <param name="relationName"></param>
         /// <param name="toContainer"></param>
         /// <param name="toId"></param>
+        /// <param name="tIdentifier"></param>
         /// <returns></returns>
         bool InsertRelation(string fromContainer,
                                 string fromId,
                                     string relationName,
                                 string toContainer,
-                            string toId);
+                            string toId, string tIdentifier = null);
 
         /// <summary>
         /// 
@@ -135,12 +154,13 @@ namespace BLS
         /// <param name="relationName"></param>
         /// <param name="toContainer"></param>
         /// <param name="toId"></param>
+        /// <param name="tIdentifier"></param>
         /// <returns></returns>
         bool RemoveRelation(string fromContainer,
                                 string fromId,
                                     string relationName,
                                 string toContainer,
-                            string toId);
+                            string toId, string tIdentifier=null);
 
         /// <summary>
         /// Collect a set of entity objects by executing a query
@@ -149,5 +169,38 @@ namespace BLS
         /// <param name="query">Query</param>
         /// <returns>Cursor containing the result set</returns>
         BlStorageCursor<T> ExecuteQuery<T>(string query) where T : new();
+
+        /// <summary>
+        /// Remove relation from storage
+        /// </summary>
+        /// <param name="relationName">Name of the relation</param>
+        void DropRelation(string relationName);
+        
+        /// <summary>
+        /// Remove entity container from storage
+        /// </summary>
+        /// <param name="containerName">Name of the container</param>
+        /// <remarks>Removing an entity container fails if the container is connected to any other container. Remove relations first</remarks>
+        void DropContainer(string containerName);
+        
+        /// <summary>
+        /// Begin transaction
+        /// </summary>
+        /// <returns>Transaction identifier</returns>
+        string BeginTransaction();
+        
+        /// <summary>
+        /// Commit transaction
+        /// </summary>
+        /// <param name="identifier">Transaction identifier</param>
+        /// <returns>true if committed</returns>
+        bool CommitTransaction(string identifier);
+        
+        /// <summary>
+        /// Abort transaction
+        /// </summary>
+        /// <param name="identifier">Transaction identifier</param>
+        /// <returns>true if aborted</returns>
+        bool RevertTransaction(string identifier);
     }
 }
