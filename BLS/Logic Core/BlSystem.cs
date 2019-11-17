@@ -77,17 +77,19 @@ namespace BLS
         /// 
         /// </summary>
         /// <param name="searchTerm"></param>
-        /// <param name="searchProperty"></param>
+        /// <param name="searchProperties"></param>
         /// <param name="filter"></param>
         /// <typeparam name="T"></typeparam>
         /// <returns></returns>
         /// <exception cref="NotImplementedException"></exception>
         public BlStorageCursor<T> Search<T>(
             string searchTerm,
-            Expression<Func<T, string>> searchProperty,
+            Expression<Func<T, string[]>> searchProperties,
             Expression<Func<T, bool>> filter = null) where T : BlEntity
         {
-            throw new NotImplementedException();
+            var resolvedContainer = BlUtils.ResolveContainerName(typeof(T));
+            List<string> props = ResolveSearchProperties(searchProperties);
+            return BlUtils.StorageRef.SearchInContainer(resolvedContainer, props, searchTerm, filter);
         }
 
         /// <summary>
@@ -97,9 +99,9 @@ namespace BLS
         /// <typeparam name="T">Entity type</typeparam>
         /// <returns>Entity object or null if nothing is found</returns>
         /// <exception cref="NotImplementedException"></exception>
-        public T GetById<T>(string id)
+        public T GetById<T>(string id) where T: BlEntity
         {
-            throw new NotImplementedException();
+            return BlUtils.StorageRef.GetById<T>(id);
         }
 
         /// <summary>
@@ -109,9 +111,9 @@ namespace BLS
         /// <typeparam name="T"></typeparam>
         /// <returns></returns>
         /// <exception cref="NotImplementedException"></exception>
-        public BlStorageCursor<T> GetByQuery<T>(string query)
+        public BlStorageCursor<T> GetByQuery<T>(string query) where T: new()
         {
-            throw new NotImplementedException();
+            return BlUtils.StorageRef.ExecuteQuery<T>(query);
         }
 
         /// <summary>
@@ -121,8 +123,15 @@ namespace BLS
         /// <param name="entity"></param>
         public void DeleteEntity<T>(T entity) where T : BlEntity
         {
-            throw new NotImplementedException();
+            if (entity.Id != null)
+            {
+                BlUtils.StorageRef.RemoveEntity(entity.Id);
+            }
         }
         
+        private List<string> ResolveSearchProperties<T>(Expression<Func<T, string[]>> searchProperties) where T : BlEntity
+        {
+            return BlUtils.ResolvePropertyNames(searchProperties);
+        }
     }
 }
