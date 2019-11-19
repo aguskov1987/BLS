@@ -1,4 +1,10 @@
-﻿using Xunit;
+﻿using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using BLS.Tests.Mocks_and_Doubles;
+using BLS.Utilities;
+using Xunit;
+using Xunit.Abstractions;
 
 namespace BLS.Tests
 {
@@ -10,35 +16,57 @@ namespace BLS.Tests
     /// </summary>
     public class BlEntityTests
     {
-        class SimpleEntity : BlEntity
+        private readonly ITestOutputHelper _output;
+        
+        class PersonFigure : BlEntity
         {
-            public string Property { get; set; }
+            public string Name { get; set; }
+            public int Age { get; set; }
         }
 
-        class ParentEntity : BlEntity
+        class MotherFigure : PersonFigure
         {
-            public ParentEntity()
+            public MotherFigure()
             {
-                Children = new RelatesToMany<ChildEntity>(this);
+                Children = new RelatesToMany<ChildFigure>(this);
             }
 
-            public RelatesToMany<ChildEntity> Children { get; }
+            public RelatesToMany<ChildFigure> Children { get; }
         }
 
-        class ChildEntity : BlEntity
+        class FatherFigure : PersonFigure
         {
-            public ChildEntity()
+            public FatherFigure()
             {
-                Parent = new RelatesToOne<ParentEntity>(this);
+                Children = new RelatesToMany<ChildFigure>(this);
             }
 
-            public RelatesToOne<ParentEntity> Parent { get; }
+            public RelatesToMany<ChildFigure> Children { get; }
+        }
+
+        class ChildFigure : PersonFigure
+        {
+            public ChildFigure()
+            {
+                Mother = new RelatesToOne<MotherFigure>(this);
+                Father = new RelatesToOne<FatherFigure>(this);
+            }
+
+            public RelatesToOne<MotherFigure> Mother { get; }
+            public RelatesToOne<FatherFigure> Father { get; }
+        }
+
+        public BlEntityTests(ITestOutputHelper output)
+        {
+            _output = output;
         }
 
         [Fact]
         public void ShouldCreateAnEntity()
         {
-            var entity = new SimpleEntity { Property = "property"};
+            BlUtils.SystemRef = null;
+            
+            var entity = new PersonFigure { Name = "James Brown"};
 
             Assert.NotNull(entity);
             Assert.Null(entity.Id);
@@ -47,7 +75,10 @@ namespace BLS.Tests
         [Fact]
         public void ShouldCreateAnEntityWithOneToManyRelation()
         {
-            var parentEntity = new ParentEntity();
+            var system = new BlSystem(new StorageProviderMock());
+            system.RegisterEntity(new MotherFigure());
+
+            var parentEntity = new MotherFigure();
 
             Assert.NotNull(parentEntity);
             Assert.NotNull(parentEntity.Children);
@@ -57,11 +88,99 @@ namespace BLS.Tests
         [Fact]
         public void ShouldCreateAnEntityWithOneToOneRelation()
         {
-            var childEntity = new ChildEntity();
+            var system = new BlSystem(new StorageProviderMock());
+            system.RegisterEntity(new ChildFigure());
+
+            var childEntity = new ChildFigure();
 
             Assert.NotNull(childEntity);
-            Assert.NotNull(childEntity.Parent);
-            Assert.Equal(BlConnectionType.OneToOne, childEntity.Parent.ConnectionType);
+            Assert.NotNull(childEntity.Mother);
+            Assert.Equal(BlConnectionType.OneToOne, childEntity.Mother.ConnectionType);
+        }
+
+        [Fact]
+        public void ShouldBeAbleToHaveAccessToProperties()
+        {
+            var system = new BlSystem(new StorageProviderMock());
+            system.RegisterEntity(new ChildFigure());
+
+            var child = new ChildFigure {Name = "Sophia", Age = 2};
+            
+            Assert.NotNull(child);
+        }
+
+        [Fact]
+        public void ShouldBeAbleToHaveAccessToRelations()
+        {
+            var system = new BlSystem(new StorageProviderMock());
+            system.RegisterEntity(new ChildFigure());
+            system.RegisterEntity(new MotherFigure());
+
+            var mother = new MotherFigure();
+            var child = new ChildFigure {Name = "Sophia", Age = 2};
+            
+            child.Mother.Connect(mother);
+            
+            Assert.NotNull(child);
+        }
+
+        [Fact]
+        public void ShouldFailToPersistIfSystemIsNotInitialized()
+        {
+            var mother = new MotherFigure();
+            mother.Age = 32;
+            mother.Persist();
+        }
+
+        [Fact]
+        public void ShouldFailToPersistIfNoStorageProviderIsSet()
+        {
+            var system = new BlSystem(null);
+            system.RegisterEntity(new ChildFigure());
+            system.RegisterEntity(new MotherFigure());
+            
+            var mother = new MotherFigure();
+            var child = new ChildFigure {Name = "Sophia", Age = 2};
+            
+            child.Mother.Connect(mother);
+
+            Assert.Throws<NullReferenceException>(() => { child.Persist(); });
+        }
+
+        [Fact]
+        public void ShouldPersistFigureWithEmptyRelations()
+        {
+            var system = new BlSystem(new StorageProviderMock());
+            
+            system.RegisterEntity(new ChildFigure());
+            
+            var child = new ChildFigure {Name = "Sophia", Age = 2};
+
+            child.Persist();
+
+            List<Tuple<string, TransactionStatus>> transactions
+                = (system.StorageProvider as StorageProviderMock).Transactions;
+
+            Assert.NotEmpty(transactions);
+            Assert.Equal(TransactionStatus.Committed, transactions[0].Item2);
+        }
+
+        [Fact]
+        public void ShouldPersistFigureWithRelations()
+        {
+            var system = new BlSystem(new StorageProviderMock());
+            system.RegisterEntity(new ChildFigure());
+            system.RegisterEntity(new MotherFigure());
+            system.RegisterEntity(new FatherFigure());
+            
+            var child = new ChildFigure {Name = "Sophia", Age = 2};
+            var mom = new MotherFigure {Name = "Tatiana", Age = 32};
+            var dad = new FatherFigure {Name = "Andrey", Age = 32};
+            
+            child.Mother.Connect(mom);
+            child.Father.Connect(dad);
+
+            mom.Persist();
         }
     }
 }

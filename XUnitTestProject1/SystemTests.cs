@@ -1,5 +1,7 @@
 using System.Collections.Generic;
 using BLS.Storage_Providers;
+using BLS.Tests.Mocks_and_Doubles;
+using BLS.Utilities;
 using Xunit;
 
 namespace BLS.Tests
@@ -64,28 +66,17 @@ namespace BLS.Tests
         [Fact]
         public void ShouldCreateABlSystem()
         {
-            var system = new BlSystem();
+            var system = new BlSystem(new StorageProviderMock());
 
             Assert.NotNull(system);
         }
 
         [Fact]
-        public void ShouldAcceptAStorageProvider()
-        {
-            var system = new BlSystem();
-            system.RegisterStorageProvider(new ArangoStorageProvider());
-
-            Assert.Equal(1, 1);
-        }
-
-        [Fact]
         public void ShouldRegisterAnEntity()
         {
-            var system = new BlSystem();
+            var system = new BlSystem(new StorageProviderMock());
             system.RegisterEntity(new SchoolDistrict());
             system.RegisterEntity(new School());
-
-            Assert.Equal(1, 1);
         }
     }
 }

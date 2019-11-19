@@ -7,17 +7,24 @@ namespace BLS
 {
     public class BlSystem
     {
-        private readonly BlRelationResolver _resolver;
-        private bool _verified;
+        private IBlStorageProvider _storageProvider;
+        private readonly IBlRelationResolver _resolver;
+
+        internal IBlStorageProvider StorageProvider => _storageProvider;
+
+        public bool Verified { get; internal set; }
+        public bool Synced { get; internal set; }
         
-        public BlSystem()
+        public BlSystem(IBlStorageProvider storageProvider)
         {
+            _storageProvider = storageProvider;
             _resolver = new BlRelationResolver();
+            BlUtils.SystemRef = this;
         }
 
-        public void RegisterStorageProvider(IBlStorageProvider storageProvider)
+        ~BlSystem()
         {
-            BlUtils.StorageRef = storageProvider;
+            BlUtils.SystemRef = null;
         }
 
         /// <summary>
@@ -28,14 +35,37 @@ namespace BLS
         {
             _resolver.AddEntityWithRelation(entity);
         }
-        
+
+        /// <summary>
+        /// Resolve name of the container for the given figure
+        /// </summary>
+        /// <param name="figureType">Type of the figure</param>
+        /// <returns>Name of the container</returns>
+        internal string ResolveFigureContainerName(Type figureType)
+        {
+            return figureType.Name;
+        }
+
+        /// <summary>
+        /// Resolve the name of the relation between given figures
+        /// </summary>
+        /// <param name="sourceFigureType">Type of the source figure</param>
+        /// <param name="targetFigureType">Type of the target figure</param>
+        /// <param name="multiplexer"></param>
+        /// <returns>Name of the relation</returns>
+        internal string ResolveFigureRelationName(Type sourceFigureType, Type targetFigureType,
+            string multiplexer = "")
+        {
+            return $"{sourceFigureType.Name}-to-{multiplexer}-{targetFigureType.Name}";
+        }
+
         /// <summary>
         /// Verify relations can be resolved between the registered entities. 
         /// </summary>
         public void VerifyRelationalIntegrity()
         {
             _resolver.VerifyRelationalIntegrity();
-            _verified = true;
+            Verified = true;
         }
 
         /// <summary>
@@ -43,7 +73,7 @@ namespace BLS
         /// </summary>
         public void SyncWithStorage()
         {
-            if (!_verified)
+            if (!Verified)
             {
                 VerifyRelationalIntegrity();
             }
@@ -52,13 +82,15 @@ namespace BLS
             List<Tuple<string, string, string>> relations = _resolver.GetResolvedRelations();
             foreach (string name in containers)
             {
-                BlUtils.StorageRef.RegisterEntityContainer(name);
+                _storageProvider.RegisterEntityContainer(name);
             }
 
             foreach (var relation in relations)
             {
-                BlUtils.StorageRef.RegisterRelation(relation.Item1, relation.Item2, relation.Item3);
+                _storageProvider.RegisterRelation(relation.Item1, relation.Item2, relation.Item3);
             }
+
+            Synced = true;
         }
 
         /// <summary>
@@ -70,6 +102,10 @@ namespace BLS
         /// <exception cref="NotImplementedException"></exception>
         public BlStorageCursor<T> Find<T>(Expression<Func<T, bool>> filter = null) where T : BlEntity
         {
+            if (!Synced || !Verified)
+            {
+                throw new InvalidOperationException("System is not synchronized with storage");
+            }
             throw new NotImplementedException();
         }
 
@@ -87,9 +123,14 @@ namespace BLS
             Expression<Func<T, string[]>> searchProperties,
             Expression<Func<T, bool>> filter = null) where T : BlEntity
         {
-            var resolvedContainer = BlUtils.ResolveContainerName(typeof(T));
+            if (!Synced || !Verified)
+            {
+                throw new InvalidOperationException("System is not synchronized with storage");
+            }
+            
+            var resolvedContainer = ResolveFigureContainerName(typeof(T));
             List<string> props = ResolveSearchProperties(searchProperties);
-            return BlUtils.StorageRef.SearchInContainer(resolvedContainer, props, searchTerm, filter);
+            return _storageProvider.SearchInContainer(resolvedContainer, props, searchTerm, filter);
         }
 
         /// <summary>
@@ -100,8 +141,13 @@ namespace BLS
         /// <returns>Entity object or null if nothing is found</returns>
         /// <exception cref="NotImplementedException"></exception>
         public T GetById<T>(string id) where T: BlEntity
-        {
-            return BlUtils.StorageRef.GetById<T>(id);
+        {            
+            if (!Synced || !Verified)
+            {
+                throw new InvalidOperationException("System is not synchronized with storage");
+            }
+            
+            return _storageProvider.GetById<T>(id);
         }
 
         /// <summary>
@@ -113,7 +159,12 @@ namespace BLS
         /// <exception cref="NotImplementedException"></exception>
         public BlStorageCursor<T> GetByQuery<T>(string query) where T: new()
         {
-            return BlUtils.StorageRef.ExecuteQuery<T>(query);
+            if (!Synced || !Verified)
+            {
+                throw new InvalidOperationException("System is not synchronized with storage");
+            }
+            
+            return _storageProvider.ExecuteQuery<T>(query);
         }
 
         /// <summary>
@@ -123,15 +174,20 @@ namespace BLS
         /// <param name="entity"></param>
         public void DeleteEntity<T>(T entity) where T : BlEntity
         {
+            if (!Synced || !Verified)
+            {
+                throw new InvalidOperationException("System is not synchronized with storage");
+            }
+            
             if (entity.Id != null)
             {
-                BlUtils.StorageRef.RemoveEntity(entity.Id);
+                _storageProvider.RemoveEntity(entity.Id);
             }
         }
         
         private List<string> ResolveSearchProperties<T>(Expression<Func<T, string[]>> searchProperties) where T : BlEntity
         {
-            return BlUtils.ResolvePropertyNames(searchProperties);
+            return BlUtils.ResolvePropertyNameArrayExpression(searchProperties);
         }
     }
 }

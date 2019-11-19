@@ -8,16 +8,16 @@ namespace BLS
     public abstract class BlConnected<T> where T : BlEntity
     {
         private readonly string _resolvedFromContainer;
-
         private readonly string _resolvedRelationName;
         protected readonly string ResolvedToContainer;
+        
         private readonly HashSet<T> _addBuffer;
         private readonly HashSet<Tuple<BlEntity, T>> _moveBuffer;
         private readonly HashSet<T> _removeBuffer;
 
         private readonly BlEntity _source;
 
-        protected BlConnected(BlEntity source, BlConnectionType connectionType, string multiplexer = null)
+        protected BlConnected(BlEntity source, BlConnectionType connectionType, string multiplexer = "")
         {
             _addBuffer = new HashSet<T>();
             _removeBuffer = new HashSet<T>();
@@ -27,11 +27,27 @@ namespace BLS
             ConnectionType = connectionType;
             Multiplexer = multiplexer;
 
-            _resolvedRelationName = BlUtils.ResolveRelationName(_source.GetType(), typeof(T), multiplexer);
-            _resolvedFromContainer = BlUtils.ResolveContainerName(_source.GetType());
-            ResolvedToContainer = BlUtils.ResolveContainerName(typeof(T));
+            _resolvedFromContainer = BlUtils.SystemRef.ResolveFigureContainerName(_source.GetType());
+            ResolvedToContainer = BlUtils.SystemRef.ResolveFigureContainerName(typeof(T));
+            _resolvedRelationName =
+                BlUtils.SystemRef.ResolveFigureRelationName(_source.GetType(), typeof(T), multiplexer);
+            
+            source.OnPersist += SourceOnOnPersist;
+        }
 
-            source.OnPersist += SourceOnPersist;
+        private void SourceOnOnPersist(object sender, PersistEventArgs e)
+        {
+            try
+            {
+                PersistAdditions(e.TransactionId);
+                PersistRemovals(e.TransactionId);
+                PersistMoves(e.TransactionId);
+            }
+            catch (Exception ex)
+            {
+                BlUtils.SystemRef.StorageProvider.RevertTransaction(e.TransactionId.ToString());
+                throw;
+            }
         }
 
         public BlConnectionType ConnectionType { get; }
@@ -61,21 +77,12 @@ namespace BLS
 
         public void MoveTo(T entity, BlEntity newConnection)
         {
-            var t1 = newConnection.GetType().FullName;
-            var t2 = _source.GetType().FullName;
+            var t1 = newConnection.GetType().Name;
+            var t2 = _source.GetType().Name;
             if (t1 == t2)
             {
                 _moveBuffer.Add(new Tuple<BlEntity, T>(newConnection, entity));
             }
-        }
-
-        private void SourceOnPersist(object sender, PersistEventArgs e)
-        {
-            PersistAdditions(e.TransactionId);
-            PersistRemovals(e.TransactionId);
-            PersistMoves(e.TransactionId);
-
-            BlUtils.StorageRef.CommitTransaction(e.TransactionId);
         }
 
         private void PersistMoves(string transactionId)
@@ -89,22 +96,22 @@ namespace BLS
                 // move the relation; otherwise persist the parent first
                 if (newParent.Id != null)
                 {
-                    bool removed = BlUtils.StorageRef.RemoveRelation(_resolvedFromContainer, _source.Id,
+                    bool removed = BlUtils.SystemRef.StorageProvider.RemoveRelation(_resolvedFromContainer, _source.Id,
                         _resolvedRelationName, ResolvedToContainer, entityToMove.Id, transactionId);
                     if (removed)
                     {
-                        BlUtils.StorageRef.InsertRelation(_resolvedFromContainer, newParent.Id,
+                        BlUtils.SystemRef.StorageProvider.InsertRelation(_resolvedFromContainer, newParent.Id,
                             _resolvedRelationName, ResolvedToContainer, entityToMove.Id, transactionId);
                     }
                 }
                 else
                 {
-                    newParent.PersistWithNoPropagation(transactionId);
-                    bool removed = BlUtils.StorageRef.RemoveRelation(_resolvedFromContainer, _source.Id,
+                    newParent.Persist();
+                    bool removed = BlUtils.SystemRef.StorageProvider.RemoveRelation(_resolvedFromContainer, _source.Id,
                         _resolvedRelationName, ResolvedToContainer, entityToMove.Id, transactionId);
                     if (removed)
                     {
-                        BlUtils.StorageRef.InsertRelation(_resolvedFromContainer, newParent.Id,
+                        BlUtils.SystemRef.StorageProvider.InsertRelation(_resolvedFromContainer, newParent.Id,
                             _resolvedRelationName, ResolvedToContainer, entityToMove.Id, transactionId);
                     }
                 }
@@ -117,7 +124,7 @@ namespace BLS
             {
                 if (entity.Id != null)
                 {
-                    BlUtils.StorageRef.RemoveRelation(_resolvedFromContainer, _source.Id,
+                    BlUtils.SystemRef.StorageProvider.RemoveRelation(_resolvedFromContainer, _source.Id,
                         _resolvedRelationName, ResolvedToContainer, transactionId);
                 }
             }
@@ -127,13 +134,12 @@ namespace BLS
         {
             foreach (var entity in _addBuffer)
             {
-                if (entity.Id == null && entity.PersistWithNoPropagation(transactionId))
+                var entityPersisted = entity.PersistWithNoPropagation(transactionId);
+                if (entityPersisted)
                 {
-                    BlUtils.StorageRef.InsertRelation(_resolvedFromContainer, _source.Id,
+                    BlUtils.SystemRef.StorageProvider.InsertRelation(_resolvedFromContainer, _source.Id,
                         _resolvedRelationName, ResolvedToContainer, transactionId);
                 }
-
-                // todo: if not null
             }
         }
     }
@@ -149,7 +155,7 @@ namespace BLS
         /// </summary>
         /// <param name="source">use 'this' when initializing from constructor of the source entity</param>
         /// <param name="multiplexer">Used if there is more than one relation to the same entity</param>
-        public RelatesToOne(BlEntity source, string multiplexer = null)
+        public RelatesToOne(BlEntity source, string multiplexer = "")
             : base(source, BlConnectionType.OneToOne, multiplexer)
         {
         }
@@ -158,7 +164,7 @@ namespace BLS
         /// Returns the related entity or null if there is none
         /// </summary>
         /// <returns>Related entity</returns>
-        public T Get()
+        public T Get(bool includeSoftDeleted = false)
         {
             return null;
         }
@@ -175,7 +181,7 @@ namespace BLS
         /// </summary>
         /// <param name="source">use 'this' when initializing from constructor of the source entity</param>
         /// <param name="multiplexer">Used if there is more than one relation to the same entity</param>
-        public RelatesToMany(BlEntity source, string multiplexer = null)
+        public RelatesToMany(BlEntity source, string multiplexer = "")
             : base(source, BlConnectionType.OneToMany, multiplexer)
         {
         }
@@ -185,10 +191,11 @@ namespace BLS
         /// <paramref name="filter"/> is provided
         /// </summary>
         /// <param name="filter">Condition to filter the results</param>
+        /// <param name="includeSoftDeleted"></param>
         /// <returns>Cursor containing the result set</returns>
-        public BlStorageCursor<T> Find(Expression<Func<T, bool>> filter = null)
+        public BlStorageCursor<T> Find(Expression<Func<T, bool>> filter = null, bool includeSoftDeleted = false)
         {
-            return BlUtils.StorageRef.FindInContainer(ResolvedToContainer, filter);
+            return BlUtils.SystemRef.StorageProvider.FindInContainer(ResolvedToContainer, filter);
         }
 
         /// <summary>
@@ -197,8 +204,10 @@ namespace BLS
         /// <typeparam name="TResult">Type of the property being computed</typeparam>
         /// <param name="type">Kind of aggregation to perform</param>
         /// <param name="computation">The expression to evaluate for each object before performing aggregation</param>
+        /// <param name="includeSoftDeleted"></param>
         /// <returns>Aggregated value</returns>
-        public TResult ComputeFor<TResult>(SsComputationType type, Expression<Func<T, TResult>> computation)
+        public TResult ComputeFor<TResult>(SsComputationType type,
+            Expression<Func<T, TResult>> computation, bool includeSoftDeleted = false)
         {
             throw new NotImplementedException();
         }
@@ -207,9 +216,9 @@ namespace BLS
         /// Get the total number of entities in the relation
         /// </summary>
         /// <returns>Number of entities</returns>
-        public int GetCount()
+        public int GetCount(bool includeSotDeleted = false)
         {
-            return BlUtils.StorageRef.GetContainerEntityCount(ResolvedToContainer);
+            return BlUtils.SystemRef.StorageProvider.GetContainerEntityCount(ResolvedToContainer);
         }
     }
 }

@@ -4,6 +4,11 @@ using System.Linq.Expressions;
 
 namespace BLS
 {
+    public interface IStorageProviderDetails
+    {
+        int MaxContainerNameLength { get; }
+        int MaxRelationNameLength { get; }
+    }
     /// <summary>
     /// Interface for a storage system. The interface abstracts the storage model
     /// to a set entities and their relations. Entities which are basically types are
@@ -11,6 +16,7 @@ namespace BLS
     /// </summary>
     public interface IBlStorageProvider
     {
+        IStorageProviderDetails ProviderDetails { get; }
         /// <summary>
         /// Register an entity container. Each entity container must have a unique name
         /// consisting of letters and underscores only; each entity corresponds to one container
@@ -202,5 +208,7 @@ namespace BLS
         /// <param name="identifier">Transaction identifier</param>
         /// <returns>true if aborted</returns>
         bool RevertTransaction(string identifier);
+
+        string EncodeNameForStorage(string name);
     }
 }
