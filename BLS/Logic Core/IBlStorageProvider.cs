@@ -63,7 +63,7 @@ namespace BLS
         /// <param name="id">ID of the entity object</param>
         /// <param name="containerName">Name of the container - optional</param>
         /// <returns>Entity object or null if nothing is found</returns>
-        T GetById<T>(string id, string containerName = null) where T: BlEntity;
+        T GetById<T>(string id, string containerName = null) where T: BlsPawn;
 
         /// <summary>
         /// Find entity objects in a given container and a set of conditions to check
@@ -72,7 +72,7 @@ namespace BLS
         /// <param name="containerName">Name of the container</param>
         /// <param name="check">Binary expression to filter the result</param>
         /// <returns>Cursor containing the result set</returns>
-        BlStorageCursor<T> FindInContainer<T>(string containerName, Expression<Func<T, bool>> check = null) where T : BlEntity;
+        StorageCursor<T> FindInContainer<T>(string containerName, Expression<Func<T, bool>> check = null) where T : BlsPawn;
 
         /// <summary>
         /// Find entity objects, given the container name and a term to search
@@ -85,8 +85,8 @@ namespace BLS
         /// <param name="check">Any additional filter to apply to the result of the search</param>
         /// <returns>Cursor containing the result set</returns>
         /// <remarks>The containers and search-enabled properties must be first added using the <c>this.RegisterFullTextSearchMember</c> method</remarks>
-        BlStorageCursor<T> SearchInContainer<T>(string containerName, List<string> propertiesToSearch, string term,
-            Expression<Func<T, bool>> check = null) where T : BlEntity;
+        StorageCursor<T> SearchInContainer<T>(string containerName, List<string> propertiesToSearch, string term,
+            Expression<Func<T, bool>> check = null) where T : BlsPawn;
 
         /// <summary>
         /// Get the count of entity objects in a container
@@ -103,7 +103,7 @@ namespace BLS
         /// <param name="relationName">Name of the relation to look for</param>
         /// <param name="containerName">Name of the container of the related objects</param>
         /// <returns>Cursor containing the result set</returns>
-        BlStorageCursor<T> GetByRelation<T>(string fromId, string relationName, string containerName = null) where T: BlEntity;
+        StorageCursor<T> GetByRelation<T>(string fromId, string relationName, string containerName = null) where T: BlsPawn;
 
         /// <summary>
         /// Insert a new entity
@@ -113,7 +113,7 @@ namespace BLS
         /// <param name="containerName">Name if the container - optional</param>
         /// <param name="tIdentifier">Transaction identifier in case the call is part of an initialized transaction</param>
         /// <returns></returns>
-        string InsertNewEntity<T>( T entity, string containerName = null, string tIdentifier=null) where T : BlEntity;
+        string InsertNewEntity<T>( T entity, string containerName = null, string tIdentifier=null) where T : BlsPawn;
 
         /// <summary>
         /// Update an entity
@@ -125,7 +125,7 @@ namespace BLS
         /// <param name="returnOld">Defaults to false but, if specified to true, return the old entity object</param>
         /// <param name="tIdentifier">Transaction identifier in case the call is part of an initialized transaction</param>
         /// <returns>Updated or old entity object</returns>
-        string UpdateEntity<T>(string entityId, T newEntity, string containerName = null, string tIdentifier = null, bool returnOld = false) where T : BlEntity;
+        string UpdateEntity<T>(string entityId, T newEntity, string containerName = null, string tIdentifier = null, bool returnOld = false) where T : BlsPawn;
 
         /// <summary>
         /// Remove an entity object
@@ -174,7 +174,7 @@ namespace BLS
         /// <typeparam name="T">Type of the entity</typeparam>
         /// <param name="query">Query</param>
         /// <returns>Cursor containing the result set</returns>
-        BlStorageCursor<T> ExecuteQuery<T>(string query) where T : new();
+        StorageCursor<T> ExecuteQuery<T>(string query) where T : new();
 
         /// <summary>
         /// Remove relation from storage

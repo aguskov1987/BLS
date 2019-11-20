@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace BLS
 {
-    public class BlStorageCursor<T>
+    public class StorageCursor<T>
     {
         private string _cursorId;
         private bool _hasMore;

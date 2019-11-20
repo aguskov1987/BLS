@@ -8,10 +8,8 @@ namespace BLS.Utilities
 {
     public static class BlUtils
     {
-        internal static BlSystem SystemRef { get; set; }
-        
         internal static List<string> ResolvePropertyNameArrayExpression<T>(
-            Expression<Func<T,string[]>> searchProperties) where T : BlEntity
+            Expression<Func<T,string[]>> searchProperties) where T : BlsPawn
         {
             NewArrayExpression castExpression;
             try
