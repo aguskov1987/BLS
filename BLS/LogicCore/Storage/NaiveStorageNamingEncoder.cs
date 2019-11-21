@@ -1,6 +1,9 @@
 ﻿namespace BLS
 {
-    internal class StorageNamingEncoder : IStorageNamingEncoder
+    /// <summary>
+    /// Naive naming encoder
+    /// </summary>
+    internal class NaiveStorageNamingEncoder : IStorageNamingEncoder
     {
         public string EncodePawnContainerName(BlsPawn pawn)
         {

@@ -3,27 +3,27 @@ using System.Linq;
 
 namespace BLS
 {
-    public class BlGraph
+    internal class BlGraph : IBlGraph
     {
         private bool _compiled;
         private IStorageNamingEncoder _storageNamingEncoder;
-        private List<BlGraphContainer> _compiledCollections;
-        private List<BlGraphRelation> _compiledRelations;
-        internal BlsPawn[] Pawns;
+        private List<BlGraphContainer> _compiledCollections = new List<BlGraphContainer>();
+        private List<BlGraphRelation> _compiledRelations = new List<BlGraphRelation>();
+        private BlsPawn[] _pawns;
 
-        public BlGraph(BlsPawn[] pawns)
+        public void RegisterPawns(BlsPawn[] pawns)
         {
-            Pawns = pawns;
+            _pawns = pawns;
             
-            if (Pawns == null || Pawns.Length == 0)
+            if (_pawns == null || _pawns.Length == 0)
             {
                 throw new EmptyPawnCollectionError();
             }
             
             VerifyUniqueNames(pawns);
-            _storageNamingEncoder = new StorageNamingEncoder();
+            _storageNamingEncoder = new NaiveStorageNamingEncoder();
         }
-        
+
         public void CompileGraph()
         {
         }
@@ -32,15 +32,15 @@ namespace BLS
 
         public List<BlGraphRelation> CompiledRelations => _compiledRelations;
 
-        private void VerifyUniqueNames(BlsPawn[] pawns)
+        public void VerifyUniqueNames(BlsPawn[] pawns)
         {
             var names = pawns.Select(p => p.GetType().Name).ToArray();
             var distinctNames = names.Distinct().ToArray();
-            if (distinctNames.Length < names.Length)
-            {
-                var dupes = names.Intersect(distinctNames).ToArray();
-                throw new DuplicateFoundInPawnCollectionError(string.Join(',', dupes));
-            }
+            if (distinctNames.Length >= names.Length)
+                return;
+            
+            var dupes = names.Intersect(distinctNames).ToArray();
+            throw new DuplicateFoundInPawnCollectionError(string.Join(',', dupes));
         }
     }
 }

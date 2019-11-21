@@ -1,40 +1,46 @@
-﻿using ChangeTracking;
+﻿using System.Collections.Generic;
+using Moq;
 using Xunit;
 
 namespace BLS.Tests
 {
-    public class Pawn : BlsPawn
-    {
-        public virtual string Name { get; set; }
-    }
     public class BlsTests
     {
         [Fact]
+        public void ShouldFailSpawningNewPawnIfNoPawnsAreRegistered()
+        {
+            // Setup
+            Bls bls = new Bls(null);
+
+            // Act & Assert
+            Assert.Throws<PawnNotRegisteredError>(() =>
+            {
+                BasicPawn basicPawn = bls.SpawnNew<BasicPawn>();
+            });
+        }
+        
+        [Fact]
         public void ShouldSpawnNewPawn()
         {
-            Bls bls = new Bls(null);
-            Pawn pawn = bls.SpawnNew<Pawn>();
-            
-            Assert.NotNull(pawn);
-        }
+            // Setup
+            var graphContainer = new BlGraphContainer
+            {
+                BlContainerName = "BasicPawn",
+                StorageContainerName = "BasicPawn"
+            };
+            var containerList = new List<BlGraphContainer> {graphContainer};
 
-        [Fact]
-        public void ShouldTrackChanges()
-        {
-            Bls bls = new Bls(null);
-            Pawn pawn = bls.SpawnNew<Pawn>();
-
-            pawn.Name = "Some Name";
-            var traceable = pawn.CastToIChangeTrackable();
+            var graphMock = new Mock<IBlGraph>();
+            graphMock.Setup(graph => graph.CompiledCollections).Returns(containerList);
             
-            Assert.True(traceable.IsChanged);
-            Assert.Equal(ChangeStatus.Changed, traceable.ChangeTrackingStatus);
-        }
-
-        [Fact]
-        public void ShouldRegisterPawns()
-        {
+            // Act
+            Bls bls = new Bls(null, graphMock.Object);
+            bls.RegisterBlPawns(new BlsPawn[] {new BasicPawn(), });
             
+            BasicPawn basicPawn = bls.SpawnNew<BasicPawn>();
+            
+            // Assert
+            Assert.NotNull(basicPawn);
         }
     }
 }

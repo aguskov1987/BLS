@@ -11,7 +11,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Storage Providers" />
+    <Compile Include="LogicCore\PawnAttributes\PropertyValidationAttributes.cs" />
   </ItemGroup>
 
 </Project>

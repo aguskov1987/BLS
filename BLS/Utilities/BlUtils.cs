@@ -39,10 +39,5 @@ namespace BLS.Utilities
 
             return result;
         }
-
-        internal static void ResolveBinaryFilterExpression<T>(Expression<Func<T, bool>> filter)
-        {
-            
-        }
     }
 }
