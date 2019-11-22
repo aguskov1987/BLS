@@ -1,0 +1,269 @@
+﻿using System;
+using System.Collections.Generic;
+using BLS.Functional;
+using BLS.PropertyValidation;
+using Xunit;
+// ReSharper disable UnusedMember.Local
+
+namespace BLS.Tests
+{
+    public class BlGraphResolvingContainersTests
+    {
+        class Client : BlsPawn
+        {
+            // privates are allowed and should not affect the output of the bl graph compilation
+            private string _value;
+
+            // strings can have full text and length restriction attributes
+            [FullTextSearchable]
+            [StringLengthRestriction(MinCharacters = 2, MaxCharacters = 100)]
+            public string FirstName { get; set; }
+            
+            [FullTextSearchable]
+            public string LastName { get; set; }
+
+            // numeric properties can have numeric restrictions. If no limit is specified
+            // min is set to 0 and max is set to int.MaxValue
+            [NumberRestriction]
+            public int TotalNumberOfOrders { get; set; }
+
+            [NumberRestriction(Maximum = 10)]
+            public int NumberOfActiveOrders { get; set; }
+
+            // properties can be used as soft delete flags if marked with the
+            // attribute. Only one per pawn is allowed
+            [UsedForSoftDeletes]
+            public bool Active { get; set; }
+
+            // collections can have minimum and maximum count restriction if the attribute is applied
+            [CollectionCountRestriction(MaximumCount = 100)]
+            public List<int> CompletedOrders { get; set; }
+
+            // methods are allowed and should not affect the compilation
+            public void SetTheValue(string v)
+            {
+                _value = v;
+            }
+
+            public string GetTheValue()
+            {
+                return _value;
+            }
+        }
+
+        class PawnWithTwoSoftDeleteFlags : BlsPawn
+        {
+            [UsedForSoftDeletes]
+            public bool Flag1 { get; set; }
+            [UsedForSoftDeletes]
+            public bool Flag2 { get; set; }
+        }
+
+        class PawnWithFtsOnNonStringProp : BlsPawn
+        {
+            [FullTextSearchable]
+            public int Prop { get; set; }
+        }
+        
+        class PawnWithStringPropAndNumericRestriction : BlsPawn
+        {
+            [NumberRestriction]
+            public string Prop { get; set; }
+        }
+
+        class PawnWithStringPropAndCollectionRestriction : BlsPawn
+        {
+            [CollectionCountRestriction(MaximumCount = 20)]
+            public string Prop { get; set; }
+        }
+
+        class PawnWithIntPropAndStringRestriction : BlsPawn
+        {
+            [StringLengthRestriction]
+            public int Prop { get; set; }
+        }
+
+        class PawnWithFloatPropAndStringRestriction : BlsPawn
+        {
+            [StringLengthRestriction]
+            public float Prop { get; set; }
+        }
+
+        class PawnWithCollectionPropAndNumericRestriction : BlsPawn
+        {
+            [NumberRestriction(Minimum = 1, Maximum = 100)]
+            public List<int> Prop { get; set; }
+        }
+
+        BlGraph BuildGraph()
+        {
+            var graph = new BlGraph();
+            graph.RegisterPawns(new BlsPawn[]
+            {
+                new Client(),
+                new PawnWithTwoSoftDeleteFlags(),
+                new PawnWithFtsOnNonStringProp(),
+                new PawnWithStringPropAndNumericRestriction(),
+                new PawnWithStringPropAndCollectionRestriction(),
+                new PawnWithIntPropAndStringRestriction(),
+                new PawnWithFloatPropAndStringRestriction(),
+                new PawnWithCollectionPropAndNumericRestriction()
+            });
+            return graph;
+        }
+        
+        [Fact]
+        public void ShouldFailToBindIfSecondSoftDeleteFlagIsFound()
+        {
+            // Setup
+            var graph = BuildGraph();
+
+            // Act & Assert
+            Assert.Throws<DuplicateSoftDeletionFlagError>(() =>
+            {
+                graph.ResolveContainerMetadataFromPawnSubClass(new PawnWithTwoSoftDeleteFlags());
+            });
+        }
+        
+        [Fact]
+        public void ShouldFailToBindFtxIfNotStringProp()
+        {
+            // Setup
+            var graph = BuildGraph();
+
+            // Act & Assert
+            Assert.Throws<InvalidFullTextSearchAttributeError>(() =>
+            {
+                graph.ResolveContainerMetadataFromPawnSubClass(new PawnWithFtsOnNonStringProp());
+            });
+        }
+
+        [Fact]
+        public void ShouldFailToBindNumericRestrictionToStringProp()
+        {
+            // Setup
+            var graph = BuildGraph();
+
+            // Act & Assert
+            Assert.Throws<InvalidRestrictiveAttributeError>(() =>
+                {
+                    graph.ResolveContainerMetadataFromPawnSubClass(new PawnWithStringPropAndNumericRestriction());
+                });
+        }
+
+        [Fact]
+        public void ShouldFailToBindCollectionRestrictionToStringProp()
+        {
+            // Setup
+            var graph = BuildGraph();
+
+            // Act & Assert
+            Assert.Throws<InvalidRestrictiveAttributeError>(() =>
+            {
+                graph.ResolveContainerMetadataFromPawnSubClass(new PawnWithStringPropAndCollectionRestriction());
+            });
+        }
+        
+        [Fact]
+        public void ShouldFailToBindStringRestrictionToIntProp()
+        {
+            // Setup
+            var graph = BuildGraph();
+
+            // Act & Assert
+            Assert.Throws<InvalidRestrictiveAttributeError>(() =>
+            {
+                graph.ResolveContainerMetadataFromPawnSubClass(new PawnWithIntPropAndStringRestriction());
+            });
+        }
+        
+        [Fact]
+        public void ShouldFailToBindStringRestrictionToFloatProp()
+        {
+            // Setup
+            var graph = BuildGraph();
+
+            // Act & Assert
+            Assert.Throws<InvalidRestrictiveAttributeError>(() =>
+            {
+                graph.ResolveContainerMetadataFromPawnSubClass(new PawnWithFloatPropAndStringRestriction());
+            });
+        }
+        
+        [Fact]
+        public void ShouldFailToBindNumericRestrictionToCollectionProp()
+        {
+            // Setup
+            var graph = BuildGraph();
+
+            // Act & Assert
+            Assert.Throws<InvalidRestrictiveAttributeError>(() =>
+            {
+                graph.ResolveContainerMetadataFromPawnSubClass(new PawnWithCollectionPropAndNumericRestriction());
+            });
+        }
+
+        [Fact]
+        public void ShouldResolvePawnMetadata()
+        {
+            // Setup
+            var graph = BuildGraph();
+
+            // Act
+            graph.ResolveContainerMetadataFromPawnSubClass(new Client());
+
+            // Assert
+            Assert.NotEmpty(graph.CompiledCollections);
+
+            var compiledCollection = graph.CompiledCollections[0];
+            Assert.Equal("Client", compiledCollection.BlContainerName);
+            Assert.Equal("Client", compiledCollection.StorageContainerName);
+
+            Assert.NotEmpty(compiledCollection.Properties);
+            
+            Assert.Collection(compiledCollection.Properties, prop =>
+            {
+                Assert.Equal("FirstName", prop.Name);
+                Assert.Equal(typeof(string), prop.PropType);
+                Assert.True(prop.IsSearchable);
+                Assert.Equal(2, prop.MinChar);
+                Assert.Equal(100, prop.MaxChar);
+            }, prop =>
+            {
+                Assert.Equal("LastName", prop.Name);
+                Assert.Equal(typeof(string), prop.PropType);
+                Assert.True(prop.IsSearchable);
+            }, prop =>
+            {
+                Assert.Equal("TotalNumberOfOrders", prop.Name);
+                Assert.Equal(typeof(int), prop.PropType);
+                Assert.Equal(0, prop.MinValue);
+                Assert.Equal(float.MaxValue, prop.MaxValue);
+            }, prop =>
+            {
+                Assert.Equal("NumberOfActiveOrders", prop.Name);
+                Assert.Equal(typeof(int), prop.PropType);
+                Assert.Equal(0, prop.MinValue);
+                Assert.Equal(10, prop.MaxValue);
+            }, prop =>
+            {
+                Assert.Equal("Active", prop.Name);
+                Assert.Equal(typeof(bool), prop.PropType);
+                Assert.True(prop.IsSoftDeleteProp);
+            }, prop =>
+            {
+                Assert.Equal("CompletedOrders", prop.Name);
+                Assert.Equal(typeof(List<int>), prop.PropType);
+                Assert.Equal(100, prop.MaxCollectionCount);
+            },prop =>
+            {
+                Assert.Equal("Created", prop.Name);
+                Assert.Equal(typeof(DateTime), prop.PropType);
+            }, prop =>
+            {
+                Assert.Equal("LastTimeModified", prop.Name);
+                Assert.Equal(typeof(DateTime), prop.PropType);
+            });
+        }
+    }
+}

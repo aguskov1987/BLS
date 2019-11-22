@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq.Expressions;
 using System.Runtime.CompilerServices;
@@ -6,9 +7,9 @@ using System.Runtime.CompilerServices;
 [assembly: InternalsVisibleTo("BLS.Tests")]
 namespace BLS.Utilities
 {
-    public static class BlUtils
+    internal static class BlUtils
     {
-        internal static List<string> ResolvePropertyNameArrayExpression<T>(
+        public static List<string> ResolvePropertyNameArrayExpression<T>(
             Expression<Func<T,string[]>> searchProperties) where T : BlsPawn
         {
             NewArrayExpression castExpression;
@@ -38,6 +39,32 @@ namespace BLS.Utilities
             }
 
             return result;
+        }
+        
+        public static bool IsNumericType(Type tp)
+        {   
+            switch (Type.GetTypeCode(tp))
+            {
+                case TypeCode.Byte:
+                case TypeCode.SByte:
+                case TypeCode.UInt16:
+                case TypeCode.UInt32:
+                case TypeCode.UInt64:
+                case TypeCode.Int16:
+                case TypeCode.Int32:
+                case TypeCode.Int64:
+                case TypeCode.Decimal:
+                case TypeCode.Double:
+                case TypeCode.Single:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+        
+        public static bool IsEnumerableType(Type type)
+        {
+            return (type.GetInterface(nameof(IEnumerable)) != null);
         }
     }
 }

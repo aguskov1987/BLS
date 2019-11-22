@@ -35,7 +35,7 @@ namespace BLS.Tests
             
             // Act
             Bls bls = new Bls(null, graphMock.Object);
-            bls.RegisterBlPawns(new BlsPawn[] {new BasicPawn(), });
+            bls.RegisterBlPawns(new BasicPawn());
             
             BasicPawn basicPawn = bls.SpawnNew<BasicPawn>();
             

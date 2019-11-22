@@ -23,21 +23,12 @@ namespace BLS
         }
 
         /// <summary>
-        /// Apply this attribute if you want to restrict a date property
-        /// </summary>
-        public class DateRestriction : Attribute
-        {
-            public float Minimum { get; set; }
-            public float Maximum { get; set; }
-        }
-
-        /// <summary>
         /// Use this attribute if you want to restrict the count inside a connection property
         /// </summary>
         public class CollectionCountRestriction : Attribute
         {
-            public float MinimumCount { get; set; }
-            public float MaximumCount { get; set; }
+            public int MinimumCount { get; set; }
+            public int MaximumCount { get; set; }
         }
     }
 }

@@ -4,11 +4,6 @@ using System.Linq.Expressions;
 
 namespace BLS
 {
-    public interface IStorageProviderDetails
-    {
-        int MaxContainerNameLength { get; }
-        int MaxRelationNameLength { get; }
-    }
     /// <summary>
     /// Interface for a storage system. The interface abstracts the storage model
     /// to a set entities and their relations. Entities which are basically types are

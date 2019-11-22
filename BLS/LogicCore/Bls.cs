@@ -48,16 +48,16 @@ namespace BLS
         /// <summary>
         /// Call this method to register your BLS pawns. 
         /// </summary>
-        /// <param name="pawns">Array of instances of pawns to register</param>
+        /// <param name="pawns">List of instances of pawns to register</param>
         /// <example>
         /// <code>
         /// public class SomePawn : BlsPawn {}
         /// public class SomeOtherPawn : BlsPawn {}
         /// Bls bls = new Bls(instance_of_storage_provider);
-        /// bls.RegisterBlPawns(new BlsPawn[] {new SomePawn(), new SomeOtherPawn()})
+        /// bls.RegisterBlPawns(new SomePawn(), new SomeOtherPawn())
         /// </code>
         /// </example>
-        public void RegisterBlPawns(BlsPawn[] pawns)
+        public void RegisterBlPawns(params BlsPawn[] pawns)
         {
             if (_graph == null)
             {
@@ -111,21 +111,37 @@ namespace BLS
 
         /// <summary>
         /// Use this method to find pawns based on their properties. If you do not provide any
-        /// filters, the method will return all pawns of the specified type.
+        /// filter predicates, the method will return all pawns of the specified type.
         /// </summary>
-        /// <param name="filter">Boolean expression which provides the filtering conditions</param>
-        /// <typeparam name="T">Type of the pawn</typeparam>
+        /// <param name="includeSoftDeleted">Also retrieve soft deleted pawns if set to true; false by default</param>
+        /// <param name="filter">Boolean expression specifying the filtering conditions</param>
+        /// <typeparam name="TPawn">Type of the pawn</typeparam>
         /// <returns>Storage Cursor containing the resulting collection of pawns</returns>
         /// <exception cref="NotImplementedException"></exception>
-        public StorageCursor<T> Find<T>(Expression<Func<T, bool>> filter = null)
+        public StorageCursor<TPawn> Find<TPawn>(
+            bool includeSoftDeleted = false,
+            Expression<Func<TPawn, bool>> filter = null) where TPawn: BlsPawn
         {
             throw new NotImplementedException();
         }
 
-        public StorageCursor<T> Search<T>(
+        /// <summary>
+        /// Call the method to search for pawns based on the search term, optionally specifiying
+        /// any additional filters
+        /// </summary>
+        /// <param name="searchTerm">The term to search</param>
+        /// <param name="additionalFilters">Boolean expression specifying any additional filter conditions</param>
+        /// <param name="includeSoftDeleted">Also retrieve soft deleted pawns if set to true; false by default</param>
+        /// <param name="searchProperties">List of property expressions to apply the search on. Only properties
+        /// marked with the <see cref="BLS.Functional.FullTextSearchable"/> attribute are allowed in the list of</param>
+        /// <typeparam name="TPawn">Type of the pawn</typeparam>
+        /// <returns>Storage Cursor containing the resulting collection of pawns</returns>
+        /// <exception cref="NotImplementedException"></exception>
+        public StorageCursor<TPawn> Search<TPawn>(
             string searchTerm,
-            Expression<Func<T, string[]>> searchProperties,
-            Expression<Func<T, bool>> filter = null)
+            Expression<Func<TPawn, bool>> additionalFilters = null,
+            bool includeSoftDeleted = false,
+            params Expression<Func<TPawn, string>>[] searchProperties) where TPawn: BlsPawn
         {
             throw new NotImplementedException();
         }
