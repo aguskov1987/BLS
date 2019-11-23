@@ -6,50 +6,13 @@ namespace BLS
 {
     /// <summary>
     /// Interface for a storage system. The interface abstracts the storage model
-    /// to a set entities and their relations. Entities which are basically types are
-    /// stored in containers. Relations are registered as named connections between containers.
+    /// to a set of containers and their relations. Containers hold objects.
+    /// Relations are registered as named connections between containers.
     /// </summary>
     public interface IBlStorageProvider
     {
         IStorageProviderDetails ProviderDetails { get; }
-        /// <summary>
-        /// Register an entity container. Each entity container must have a unique name
-        /// consisting of letters and underscores only; each entity corresponds to one container
-        /// </summary>
-        /// <param name="containerNme">Name of the container to register</param>
-        void RegisterEntityContainer(string containerNme);
-
-        /// <summary>
-        /// Register a relation between two entities. Each relation must be unique
-        /// </summary>
-        /// <param name="fromContainerName">Name of the source container</param>
-        /// <param name="relation">Name of the relation</param>
-        /// <param name="toContainerName">Name of the target container. Can be the same as the source container</param>
-        /// <remarks>You can have more than one relation between the same containers as long as the name
-        /// of the relation is unique</remarks>
-        void RegisterRelation(string fromContainerName, string relation, string toContainerName);
-
-        /// <summary>
-        /// Register a property of entity to use as soft deletion flag
-        /// </summary>
-        /// <param name="containerName">Name of the container</param>
-        /// <param name="propertyName">Name of the entity's property to use as soft deletion flag.
-        /// The property should be boolean but can be of any acceptable in the <see cref="BlEntity"/> type</param>
-        void RegisterSoftDeletionFlag(string containerName, string propertyName);
-
-        /// <summary>
-        /// Register a property so it is available to search using the <c>this.SearchInContainer</c>
-        /// </summary>
-        /// <param name="containerName">Name of the container</param>
-        /// <param name="propertyName">Name of the property of the entity for search. Must be of string type</param>
-        void RegisterFullTextSearchMember(string containerName, string propertyName);
-        
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="performBackupBeforeSync"></param>
-        /// <returns>Two lists: the first contains orphan containers, the second - orphaned relations</returns>
-        Tuple<List<string>, List<string>> Synchronize(bool performBackupBeforeSync);
+        Tuple<List<string>, List<string>> Sync(List<BlGraphContainer> containers, List<BlGraphRelation> relations);
 
         /// <summary>
         /// Get an entity object by ID
@@ -70,12 +33,11 @@ namespace BLS
         StorageCursor<T> FindInContainer<T>(string containerName, Expression<Func<T, bool>> check = null) where T : BlsPawn;
 
         /// <summary>
-        /// Find entity objects, given the container name and a term to search
+        /// Find objects, given the container name and a term to search
         /// </summary>
         /// <typeparam name="T">Type of the entity</typeparam>
         /// <param name="containerName">Name of the container</param>
         /// <param name="propertiesToSearch">List of properties to search in</param>
-        /// <see cref="BlFullTextSearchable"/>
         /// <param name="term">Term to search</param>
         /// <param name="check">Any additional filter to apply to the result of the search</param>
         /// <returns>Cursor containing the result set</returns>
@@ -84,14 +46,14 @@ namespace BLS
             Expression<Func<T, bool>> check = null) where T : BlsPawn;
 
         /// <summary>
-        /// Get the count of entity objects in a container
+        /// Get the count of objects in a container
         /// </summary>
         /// <param name="containerName">Name of the container</param>
         /// <returns>Entity objects count</returns>
-        int GetContainerEntityCount(string containerName);
+        int GetContainerCount(string containerName);
 
         /// <summary>
-        /// Get all entity objects related to the specified source object
+        /// Get all objects related to the specified source object
         /// </summary>
         /// <typeparam name="T">Type of the related entities</typeparam>
         /// <param name="fromId">ID of the source entity object</param>
@@ -101,35 +63,35 @@ namespace BLS
         StorageCursor<T> GetByRelation<T>(string fromId, string relationName, string containerName = null) where T: BlsPawn;
 
         /// <summary>
-        /// Insert a new entity
+        /// Insert a new object
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="entity">Type of entity</param>
         /// <param name="containerName">Name if the container - optional</param>
         /// <param name="tIdentifier">Transaction identifier in case the call is part of an initialized transaction</param>
         /// <returns></returns>
-        string InsertNewEntity<T>( T entity, string containerName = null, string tIdentifier=null) where T : BlsPawn;
+        string SaveNew<T>( T entity, string containerName = null, string tIdentifier=null) where T : BlsPawn;
 
         /// <summary>
-        /// Update an entity
+        /// Update an object
         /// </summary>
         /// <typeparam name="T">Type of entity</typeparam>
-        /// <param name="entityId">Id of the entity object</param>
-        /// <param name="newEntity">The new object to update from</param>
+        /// <param name="id">Id of the entity object</param>
+        /// <param name="newObject">The new object to update from</param>
         /// <param name="containerName">Name of the container - optional</param>
         /// <param name="returnOld">Defaults to false but, if specified to true, return the old entity object</param>
         /// <param name="tIdentifier">Transaction identifier in case the call is part of an initialized transaction</param>
         /// <returns>Updated or old entity object</returns>
-        string UpdateEntity<T>(string entityId, T newEntity, string containerName = null, string tIdentifier = null, bool returnOld = false) where T : BlsPawn;
+        string Update<T>(string id, T newObject, string containerName = null, string tIdentifier = null, bool returnOld = false) where T : BlsPawn;
 
         /// <summary>
-        /// Remove an entity object
+        /// Delete an object from storage
         /// </summary>
-        /// <param name="entityId">ID of the entity object to remove</param>
+        /// <param name="entityId">ID of the object to remove</param>
         /// <param name="containerName">Name of the container - optional</param>
         /// <param name="tIdentifier">Transaction identifier in case the call is part of an initialized transaction</param>
         /// <returns>true if removal is successful</returns>
-        bool RemoveEntity(string entityId, string containerName = null, string tIdentifier = null);
+        bool Delete(string entityId, string containerName = null, string tIdentifier = null);
 
         /// <summary>
         /// Insert a new relation
@@ -164,26 +126,13 @@ namespace BLS
                             string toId, string tIdentifier=null);
 
         /// <summary>
-        /// Collect a set of entity objects by executing a query
+        /// Collect a set of objects by executing a query directly against the storage
         /// </summary>
         /// <typeparam name="T">Type of the entity</typeparam>
         /// <param name="query">Query</param>
         /// <returns>Cursor containing the result set</returns>
         StorageCursor<T> ExecuteQuery<T>(string query) where T : new();
 
-        /// <summary>
-        /// Remove relation from storage
-        /// </summary>
-        /// <param name="relationName">Name of the relation</param>
-        void DropRelation(string relationName);
-        
-        /// <summary>
-        /// Remove entity container from storage
-        /// </summary>
-        /// <param name="containerName">Name of the container</param>
-        /// <remarks>Removing an entity container fails if the container is connected to any other container. Remove relations first</remarks>
-        void DropContainer(string containerName);
-        
         /// <summary>
         /// Begin transaction
         /// </summary>
@@ -203,7 +152,5 @@ namespace BLS
         /// <param name="identifier">Transaction identifier</param>
         /// <returns>true if aborted</returns>
         bool RevertTransaction(string identifier);
-
-        string EncodeNameForStorage(string name);
     }
 }

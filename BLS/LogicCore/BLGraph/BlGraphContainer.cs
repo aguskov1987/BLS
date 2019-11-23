@@ -2,7 +2,7 @@
 
 namespace BLS
 {
-    internal class BlGraphContainer
+    public class BlGraphContainer
     {
         public string BlContainerName { get; set; }
         public string StorageContainerName { get; set; }

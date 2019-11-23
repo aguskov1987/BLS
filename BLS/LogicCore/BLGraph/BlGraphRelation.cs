@@ -1,6 +1,6 @@
 ﻿namespace BLS
 {
-    internal class BlGraphRelation
+    public class BlGraphRelation
     {
         internal BlGraphContainer SourceContainer { get; set; }
         internal BlGraphContainer TargetContainer { get; set; }

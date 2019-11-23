@@ -2,7 +2,7 @@
 
 namespace BLS
 {
-    internal class BlContainerProp
+    public class BlContainerProp
     {
         public Type PropType { get; set; }
         public string Name { get; set; }
