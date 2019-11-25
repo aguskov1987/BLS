@@ -74,6 +74,16 @@ namespace BLS
             _compiledCollections.Add(container);
         }
 
+        public void OverrideStorageNamingEncoder(IStorageNamingEncoder encoder)
+        {
+            _storageNamingEncoder = encoder;
+        }
+
+        public string GetStorageContainerNameForPawn(BlsPawn pawn)
+        {
+            return _storageNamingEncoder.EncodePawnContainerName(pawn);
+        }
+
         public void ResolveRelations()
         {
             var nodes = new List<LoseNode>();
@@ -92,6 +102,12 @@ namespace BLS
             foreach (PropertyInfo property in properties)
             {
                 Type propType = property.PropertyType;
+                
+                if (BlUtils.IsEnumerableType(propType) && propType != typeof(string))
+                {
+                    throw new DisallowedPawnProperty($"Collection properties are not allowed in pawns: {property.Name} of {pawn.GetType().Name}");
+                }
+                
                 Attribute[] attributes = property.GetCustomAttributes().ToArray();
                 
                 var blProp = new BlContainerProp();
@@ -148,15 +164,44 @@ namespace BLS
                                 blProp.MaxValue = Math.Abs(nRes.Maximum) < 0.000001 ? float.MaxValue : nRes.Maximum;
                             }
 
-                            if (attribute is CollectionCountRestriction cRes)
+                            if (attribute is DateRestriction dRes)
                             {
-                                if (!BlUtils.IsEnumerableType(blProp.PropType) || blProp.PropType == typeof(string))
+                                if (blProp.PropType != typeof(DateTime))
                                 {
-                                    throw new InvalidRestrictiveAttributeError($"Attempting to apply a collection restriction attribute to a non-collection property {blProp.Name} of {container.BlContainerName}");
+                                    throw new InvalidRestrictiveAttributeError($"Attempting to apply a date restriction attribute to a non-date property {blProp.Name} of {container.BlContainerName}");
                                 }
-                                
-                                blProp.MinCollectionCount = cRes.MinimumCount;
-                                blProp.MaxCollectionCount = cRes.MaximumCount == 0 ? int.MaxValue : cRes.MaximumCount;
+
+                                DateTime earliestValue;
+                                DateTime latestValue;
+
+                                if (dRes.Earliest == "")
+                                {
+                                    earliestValue = DateTime.MinValue;
+                                }
+                                else
+                                {
+                                    var parsed = DateTime.TryParse(dRes.Earliest, out earliestValue);
+                                    if (!parsed)
+                                    {
+                                        throw new InvalidRestrictiveAttributeError($"Date restriction attribute is not in correct format: {blProp.Name} of {container.BlContainerName}");
+                                    }
+                                }
+
+                                if (dRes.Latest == "")
+                                {
+                                    latestValue = DateTime.MaxValue;
+                                }
+                                else
+                                {
+                                    var parsed = DateTime.TryParse(dRes.Latest, out latestValue);
+                                    if (!parsed)
+                                    {
+                                        throw new InvalidRestrictiveAttributeError($"Date restriction attribute is not in correct format: {blProp.Name} of {container.BlContainerName}");
+                                    }
+                                }
+
+                                blProp.EarliestDate = earliestValue;
+                                blProp.LatestDate = latestValue;
                             }
                         }
                     }
@@ -189,6 +234,13 @@ namespace BLS
         }
 
         #endregion
+    }
+
+    internal class DisallowedPawnProperty : Exception
+    {
+        public DisallowedPawnProperty(string message) : base(message)
+        {
+        }
     }
 }
 

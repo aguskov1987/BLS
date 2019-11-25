@@ -12,6 +12,13 @@ namespace BLS
     public interface IBlStorageProvider
     {
         IStorageProviderDetails ProviderDetails { get; }
+        
+        /// <summary>
+        /// Synchronize containers and relations with storage
+        /// </summary>
+        /// <param name="containers">List of containers</param>
+        /// <param name="relations">List of relations</param>
+        /// <returns></returns>
         Tuple<List<string>, List<string>> Sync(List<BlGraphContainer> containers, List<BlGraphRelation> relations);
 
         /// <summary>
@@ -28,9 +35,12 @@ namespace BLS
         /// </summary>
         /// <typeparam name="T">Type of the entity</typeparam>
         /// <param name="containerName">Name of the container</param>
-        /// <param name="check">Binary expression to filter the result</param>
+        /// <param name="filter">Expression to </param>
+        /// <param name="sortProperty"></param>
+        /// <param name="sortOrder"></param>
         /// <returns>Cursor containing the result set</returns>
-        StorageCursor<T> FindInContainer<T>(string containerName, Expression<Func<T, bool>> check = null) where T : BlsPawn;
+        StorageCursor<T> FindInContainer<T>(string containerName, BinaryExpression filter = null,
+            string sortProperty = null, string sortOrder = null) where T : BlsPawn;
 
         /// <summary>
         /// Find objects, given the container name and a term to search
@@ -39,11 +49,13 @@ namespace BLS
         /// <param name="containerName">Name of the container</param>
         /// <param name="propertiesToSearch">List of properties to search in</param>
         /// <param name="term">Term to search</param>
-        /// <param name="check">Any additional filter to apply to the result of the search</param>
+        /// <param name="filter"></param>
+        /// <param name="sortProperty"></param>
+        /// <param name="sortOrder"></param>
         /// <returns>Cursor containing the result set</returns>
         /// <remarks>The containers and search-enabled properties must be first added using the <c>this.RegisterFullTextSearchMember</c> method</remarks>
         StorageCursor<T> SearchInContainer<T>(string containerName, List<string> propertiesToSearch, string term,
-            Expression<Func<T, bool>> check = null) where T : BlsPawn;
+            BinaryExpression filter = null, string sortProperty = null, string sortOrder = null) where T : BlsPawn;
 
         /// <summary>
         /// Get the count of objects in a container
@@ -103,14 +115,11 @@ namespace BLS
         /// <param name="toId"></param>
         /// <param name="tIdentifier"></param>
         /// <returns></returns>
-        bool InsertRelation(string fromContainer,
-                                string fromId,
-                                    string relationName,
-                                string toContainer,
-                            string toId, string tIdentifier = null);
+        bool SaveRelation(string fromContainer, string fromId, string relationName,
+            string toContainer, string toId, string tIdentifier = null);
 
         /// <summary>
-        /// 
+        /// Delete a relation between two objects
         /// </summary>
         /// <param name="fromContainer"></param>
         /// <param name="fromId"></param>
@@ -119,11 +128,8 @@ namespace BLS
         /// <param name="toId"></param>
         /// <param name="tIdentifier"></param>
         /// <returns></returns>
-        bool RemoveRelation(string fromContainer,
-                                string fromId,
-                                    string relationName,
-                                string toContainer,
-                            string toId, string tIdentifier=null);
+        bool DeleteRelation(string fromContainer, string fromId, string relationName,
+            string toContainer, string toId, string tIdentifier=null);
 
         /// <summary>
         /// Collect a set of objects by executing a query directly against the storage
@@ -138,14 +144,14 @@ namespace BLS
         /// </summary>
         /// <returns>Transaction identifier</returns>
         string BeginTransaction();
-        
+
         /// <summary>
         /// Commit transaction
         /// </summary>
         /// <param name="identifier">Transaction identifier</param>
         /// <returns>true if committed</returns>
         bool CommitTransaction(string identifier);
-        
+
         /// <summary>
         /// Abort transaction
         /// </summary>

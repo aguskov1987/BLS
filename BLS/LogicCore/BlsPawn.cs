@@ -21,9 +21,9 @@ namespace BLS
             _id = id;
         }
 
-        internal bool IsInStorage()
+        internal string GetId()
         {
-            return string.IsNullOrEmpty(_id);
+            return _id;
         }
     }
 }

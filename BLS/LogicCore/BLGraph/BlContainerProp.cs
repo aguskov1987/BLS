@@ -12,7 +12,7 @@ namespace BLS
         public float MinValue { get; set; }
         public int MaxChar { get; set; }
         public int MinChar { get; set; }
-        public int MinCollectionCount { get; set; }
-        public int MaxCollectionCount { get; set; }
+        public DateTime EarliestDate { get; set; }
+        public DateTime LatestDate { get; set; }
     }
 }

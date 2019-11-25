@@ -8,6 +8,7 @@ namespace BLS
         void CompileGraph();
         List<BlGraphContainer> CompiledCollections { get; }
         List<BlGraphRelation> CompiledRelations { get; }
-        void VerifyUniqueNames(BlsPawn[] pawns);
+        void OverrideStorageNamingEncoder(IStorageNamingEncoder encoder);
+        string GetStorageContainerNameForPawn(BlsPawn pawn);
     }
 }

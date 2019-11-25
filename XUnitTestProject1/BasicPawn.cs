@@ -1,4 +1,5 @@
-﻿namespace BLS.Tests
+﻿// ReSharper disable ClassWithVirtualMembersNeverInherited.Global
+namespace BLS.Tests
 {
     public class BasicPawn : BlsPawn
     {

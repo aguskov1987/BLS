@@ -4,18 +4,37 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Runtime.CompilerServices;
 using ChangeTracking;
+// ReSharper disable InvalidXmlDocComment
 
 [assembly: InternalsVisibleTo("BLS.Tests")]
 [assembly: InternalsVisibleTo("DynamicProxyGenAssembly2")]
 namespace BLS
 {
+    public enum BlOperator
+    {
+        And, Or, Eq, NotEq, Grt, Ls, GrtOrEq, LsOrEq
+    }
+
+    public class BlBinaryExpression
+    {
+        public BlBinaryExpression Right { get; set; }
+        public BlOperator Operator { get; set; }
+        public BlBinaryExpression Left { get; set; }
+        
+        public bool IsLeaf { get; set; }
+        public string PropName { get; set; }
+        public object Value { get; set; }
+    }
+
     public class Bls
     {
         private IBlGraph _graph;
         private IBlStorageProvider _storageProvider;
+        
         private List<BlsPawn> _toAdd = new List<BlsPawn>();
-        private List<int> _toConnect = new List<int>();
-        private List<int> _toDisconnect = new List<int>();
+        private List<BlsPawn> _toUpdate = new List<BlsPawn>();
+        private List<Connection> _toConnect = new List<Connection>();
+        private List<Connection> _toDisconnect = new List<Connection>();
         private List<BlsPawn> _toRemove = new List<BlsPawn>();
 
         /// <summary>
@@ -76,7 +95,7 @@ namespace BLS
         /// <exception cref="BlGraphNotRegisteredError"></exception>
         /// <exception cref="PawnNotRegisteredError"></exception>
         /// <remarks>Newly spawned pawns will NOT save in storage unless you call the
-        /// <see cref="Bls.StoreChanges()"/> method
+        /// <see cref="Bls.PersistChanges()"/> method
         /// </remarks>
         public TPawn SpawnNew<TPawn>() where TPawn : BlsPawn, new()
         {
@@ -115,23 +134,36 @@ namespace BLS
         /// </summary>
         /// <param name="includeSoftDeleted">Also retrieve soft deleted pawns if set to true; false by default</param>
         /// <param name="filter">Boolean expression specifying the filtering conditions</param>
+        /// <param name="sortProperty">Property of the pawn to use for sorting</param>
+        /// <param name="sortDir">Ascending or Descending</param>
+        /// <param name="batchSize">Number of records to return in the <see cref="BLS.StorageCursor"/> class></param>
         /// <typeparam name="TPawn">Type of the pawn</typeparam>
         /// <returns>Storage Cursor containing the resulting collection of pawns</returns>
         /// <exception cref="NotImplementedException"></exception>
         public StorageCursor<TPawn> Find<TPawn>(
             bool includeSoftDeleted = false,
-            Expression<Func<TPawn, bool>> filter = null) where TPawn: BlsPawn
+            Expression<Func<TPawn, bool>> filter = null,
+            Expression<Func<TPawn, object>> sortProperty = null,
+            Sort sortDir = Sort.Asc,
+            int batchSize = 200) where TPawn: BlsPawn, new()
         {
-            throw new NotImplementedException();
+            var container = _graph.GetStorageContainerNameForPawn(new TPawn());
+            BinaryExpression filterExpression = filter == null ? null : ResolveFilterExpression(filter);
+            string sortProp = sortProperty == null ? null : ResolveSortExpression(sortProperty);
+            
+            return _storageProvider.FindInContainer<TPawn>(container, filterExpression, sortProp, sortDir.ToString());
         }
 
         /// <summary>
-        /// Call the method to search for pawns based on the search term, optionally specifiying
-        /// any additional filters
+        /// Call the method to search for pawns based on the search term, optionally specifying
+        /// any additional filters.
         /// </summary>
         /// <param name="searchTerm">The term to search</param>
-        /// <param name="additionalFilters">Boolean expression specifying any additional filter conditions</param>
+        /// <param name="filter">Boolean expression specifying any additional filter conditions</param>
         /// <param name="includeSoftDeleted">Also retrieve soft deleted pawns if set to true; false by default</param>
+        /// <param name="sortProperty">Property of the pawn to use for sorting</param>
+        /// <param name="sortDir">Ascending or Descending</param>
+        /// <param name="batchSize">Number of records to return in the <see cref="BLS.StorageCursor"/> class</param>
         /// <param name="searchProperties">List of property expressions to apply the search on. Only properties
         /// marked with the <see cref="BLS.Functional.FullTextSearchable"/> attribute are allowed in the list of</param>
         /// <typeparam name="TPawn">Type of the pawn</typeparam>
@@ -139,9 +171,12 @@ namespace BLS
         /// <exception cref="NotImplementedException"></exception>
         public StorageCursor<TPawn> Search<TPawn>(
             string searchTerm,
-            Expression<Func<TPawn, bool>> additionalFilters = null,
             bool includeSoftDeleted = false,
-            params Expression<Func<TPawn, string>>[] searchProperties) where TPawn: BlsPawn
+            Expression<Func<TPawn, bool>> filter = null,
+            Expression<Func<TPawn, object>> sortProperty = null,
+            Sort sortDir = Sort.Asc,
+            int batchSize = 200,
+            params Expression<Func<TPawn, string>>[] searchProperties) where TPawn: BlsPawn, new()
         {
             throw new NotImplementedException();
         }
@@ -153,9 +188,15 @@ namespace BLS
         /// <typeparam name="T">Type of the pawn</typeparam>
         /// <returns>Pawn found in the storage or <c>null</c> if no pawn is found</returns>
         /// <exception cref="NotImplementedException"></exception>
-        public T GetById<T>(string id)
+        public T GetById<T>(string id) where T : BlsPawn, new()
         {
-            throw new NotImplementedException();
+            var container = _graph.GetStorageContainerNameForPawn(new T());
+            if (_graph.CompiledCollections.Select(c => c.StorageContainerName).Any(c => c == container))
+            {
+                return _storageProvider.GetById<T>(id, container);
+            }
+
+            throw new PawnNotRegisteredError($"Pawn of type {typeof(T).Name} is not registered in BLS");
         }
 
         /// <summary>
@@ -181,14 +222,15 @@ namespace BLS
         /// <param name="pawn">Pawn to delete</param>
         /// <typeparam name="TPawn">Type of the pawn</typeparam>
         /// <remarks>Deletions will NOT be saved in storage unless you call the
-        /// <see cref="Bls.PersistChanges()"/> method.
+        /// <see cref="PersistChanges()"/> method.
         /// </remarks>
         public void Delete<TPawn>(TPawn pawn) where TPawn: BlsPawn
         {
+            _toConnect.RemoveAll(connection => connection.From == pawn || connection.To == pawn);
+            _toDisconnect.RemoveAll(connection => connection.From == pawn || connection.To == pawn);
             if (_toAdd.Contains(pawn))
             {
                 _toAdd.Remove(pawn);
-                //todo: remove any in-memory connections
             }
             else
             {
@@ -208,6 +250,53 @@ namespace BLS
             {
                 throw new NoStorageProviderRegisteredError();
             }
+        }
+
+        public void OverrideStorageNamingEncoder(IStorageNamingEncoder encoder)
+        {
+            _graph.OverrideStorageNamingEncoder(encoder);
+        }
+
+        internal void Connect(BlsPawn source, BlsPawn target, string relation)
+        {
+            _toConnect.Add(new Connection {From = source, To = target, RelationName = relation});
+        }
+
+        internal void Disconnect(BlsPawn source, BlsPawn target, string relation)
+        {
+            _toDisconnect.Add(new Connection {From = source, To = target, RelationName = relation});
+        }
+        
+        private BinaryExpression ResolveFilterExpression<TPawn>(Expression<Func<TPawn, bool>> filter) where TPawn : BlsPawn, new()
+        {
+            var expression = filter.Body as BinaryExpression;
+            if (expression != null)
+            {
+            }
+            
+            try
+            {
+                Delegate l = Expression.Lambda(expression.Right).Compile();
+                var result = l.DynamicInvoke();
+            }
+            catch (Exception ex)
+            {
+                Console.Write(ex);
+            }
+
+            throw new NotImplementedException();
+        }
+
+        private string ResolveSortExpression<TPawn>(Expression<Func<TPawn, object>> sortProperty) where TPawn : BlsPawn, new()
+        {
+            throw new NotImplementedException();
+        }
+
+        struct Connection
+        {
+            public BlsPawn From { get; set; }
+            public BlsPawn To { get; set; }
+            public string RelationName { get; set; }
         }
     }
 }

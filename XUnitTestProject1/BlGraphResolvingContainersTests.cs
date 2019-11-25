@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using BLS.Functional;
 using BLS.PropertyValidation;
 using Xunit;
@@ -36,8 +37,8 @@ namespace BLS.Tests
             public bool Active { get; set; }
 
             // collections can have minimum and maximum count restriction if the attribute is applied
-            [CollectionCountRestriction(MaximumCount = 100)]
-            public List<int> CompletedOrders { get; set; }
+            [DateRestriction(Latest = "2020-01-01")]
+            public DateTime MaturityDate { get; set; }
 
             // methods are allowed and should not affect the compilation
             public void SetTheValue(string v)
@@ -71,9 +72,9 @@ namespace BLS.Tests
             public string Prop { get; set; }
         }
 
-        class PawnWithStringPropAndCollectionRestriction : BlsPawn
+        class PawnWithStringPropAndDateRestriction : BlsPawn
         {
-            [CollectionCountRestriction(MaximumCount = 20)]
+            [DateRestriction(Latest = "2020-01-01")]
             public string Prop { get; set; }
         }
 
@@ -104,7 +105,7 @@ namespace BLS.Tests
                 new PawnWithTwoSoftDeleteFlags(),
                 new PawnWithFtsOnNonStringProp(),
                 new PawnWithStringPropAndNumericRestriction(),
-                new PawnWithStringPropAndCollectionRestriction(),
+                new PawnWithStringPropAndDateRestriction(),
                 new PawnWithIntPropAndStringRestriction(),
                 new PawnWithFloatPropAndStringRestriction(),
                 new PawnWithCollectionPropAndNumericRestriction()
@@ -160,7 +161,7 @@ namespace BLS.Tests
             // Act & Assert
             Assert.Throws<InvalidRestrictiveAttributeError>(() =>
             {
-                graph.ResolveContainerMetadataFromPawnSubClass(new PawnWithStringPropAndCollectionRestriction());
+                graph.ResolveContainerMetadataFromPawnSubClass(new PawnWithStringPropAndDateRestriction());
             });
         }
         
@@ -252,9 +253,9 @@ namespace BLS.Tests
                 Assert.True(prop.IsSoftDeleteProp);
             }, prop =>
             {
-                Assert.Equal("CompletedOrders", prop.Name);
-                Assert.Equal(typeof(List<int>), prop.PropType);
-                Assert.Equal(100, prop.MaxCollectionCount);
+                Assert.Equal("MaturityDate", prop.Name);
+                Assert.Equal(typeof(DateTime), prop.PropType);
+                Assert.Equal("", prop.LatestDate.ToString(CultureInfo.InvariantCulture));
             },prop =>
             {
                 Assert.Equal("Created", prop.Name);

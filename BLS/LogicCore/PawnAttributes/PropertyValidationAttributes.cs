@@ -23,12 +23,12 @@ namespace BLS
         }
 
         /// <summary>
-        /// Use this attribute if you want to restrict the count inside a connection property
+        /// Use this attribute if you want to restrict date range
         /// </summary>
-        public class CollectionCountRestriction : Attribute
+        public class DateRestriction : Attribute
         {
-            public int MinimumCount { get; set; }
-            public int MaximumCount { get; set; }
+            public string Earliest { get; set; }
+            public string Latest { get; set; }
         }
     }
 }

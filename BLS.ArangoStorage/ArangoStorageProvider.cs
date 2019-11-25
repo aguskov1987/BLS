@@ -17,12 +17,14 @@ namespace BLS.ArangoStorage
             throw new NotImplementedException();
         }
 
-        public StorageCursor<T> FindInContainer<T>(string containerName, Expression<Func<T, bool>> check = null) where T : BlsPawn
+        public StorageCursor<T> FindInContainer<T>(string containerName, BinaryExpression filter = null, string sortProperty = null,
+            string sortOrder = null) where T : BlsPawn
         {
             throw new NotImplementedException();
         }
 
-        public StorageCursor<T> SearchInContainer<T>(string containerName, List<string> propertiesToSearch, string term, Expression<Func<T, bool>> check = null) where T : BlsPawn
+        public StorageCursor<T> SearchInContainer<T>(string containerName, List<string> propertiesToSearch, string term,
+            BinaryExpression filter = null, string sortProperty = null, string sortOrder = null) where T : BlsPawn
         {
             throw new NotImplementedException();
         }
@@ -53,13 +55,13 @@ namespace BLS.ArangoStorage
             throw new NotImplementedException();
         }
 
-        public bool InsertRelation(string fromContainer, string fromId, string relationName, string toContainer, string toId,
+        public bool SaveRelation(string fromContainer, string fromId, string relationName, string toContainer, string toId,
             string tIdentifier = null)
         {
             throw new NotImplementedException();
         }
 
-        public bool RemoveRelation(string fromContainer, string fromId, string relationName, string toContainer, string toId,
+        public bool DeleteRelation(string fromContainer, string fromId, string relationName, string toContainer, string toId,
             string tIdentifier = null)
         {
             throw new NotImplementedException();
