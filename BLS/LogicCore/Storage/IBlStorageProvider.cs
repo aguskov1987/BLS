@@ -39,7 +39,7 @@ namespace BLS
         /// <param name="sortProperty"></param>
         /// <param name="sortOrder"></param>
         /// <returns>Cursor containing the result set</returns>
-        StorageCursor<T> FindInContainer<T>(string containerName, BinaryExpression filter = null,
+        StorageCursor<T> FindInContainer<T>(string containerName, BlBinaryExpression filter = null,
             string sortProperty = null, string sortOrder = null) where T : BlsPawn;
 
         /// <summary>
@@ -55,7 +55,7 @@ namespace BLS
         /// <returns>Cursor containing the result set</returns>
         /// <remarks>The containers and search-enabled properties must be first added using the <c>this.RegisterFullTextSearchMember</c> method</remarks>
         StorageCursor<T> SearchInContainer<T>(string containerName, List<string> propertiesToSearch, string term,
-            BinaryExpression filter = null, string sortProperty = null, string sortOrder = null) where T : BlsPawn;
+            BlBinaryExpression filter = null, string sortProperty = null, string sortOrder = null) where T : BlsPawn;
 
         /// <summary>
         /// Get the count of objects in a container

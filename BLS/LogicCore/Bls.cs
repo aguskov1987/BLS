@@ -28,6 +28,10 @@ namespace BLS
 
     public class Bls
     {
+        // dependency on internal Expression implementation as these types are internal and are subject to changes
+        private string PropertyExpressionType = "PropertyExpression";
+        private string ConstantExpressionType = "ConstantExpression";
+        
         private IBlGraph _graph;
         private IBlStorageProvider _storageProvider;
         
@@ -148,7 +152,7 @@ namespace BLS
             int batchSize = 200) where TPawn: BlsPawn, new()
         {
             var container = _graph.GetStorageContainerNameForPawn(new TPawn());
-            BinaryExpression filterExpression = filter == null ? null : ResolveFilterExpression(filter);
+            BlBinaryExpression filterExpression = filter == null ? null : ResolveFilterExpression(filter);
             string sortProp = sortProperty == null ? null : ResolveSortExpression(sortProperty);
             
             return _storageProvider.FindInContainer<TPawn>(container, filterExpression, sortProp, sortDir.ToString());
@@ -267,24 +271,67 @@ namespace BLS
             _toDisconnect.Add(new Connection {From = source, To = target, RelationName = relation});
         }
         
-        private BinaryExpression ResolveFilterExpression<TPawn>(Expression<Func<TPawn, bool>> filter) where TPawn : BlsPawn, new()
+        private BlBinaryExpression ResolveFilterExpression<TPawn>(Expression<Func<TPawn, bool>> filter) where TPawn : BlsPawn, new()
         {
-            var expression = filter.Body as BinaryExpression;
-            if (expression != null)
+            if (!(filter.Body is BinaryExpression expression))
             {
-            }
-            
-            try
-            {
-                Delegate l = Expression.Lambda(expression.Right).Compile();
-                var result = l.DynamicInvoke();
-            }
-            catch (Exception ex)
-            {
-                Console.Write(ex);
+                throw new IncorrectFilterArgumentStructureError($"Filter expression has to be a binary expression. You provided {filter.Body.Type}");
             }
 
-            throw new NotImplementedException();
+            if (expression.Left.GetType().Name != PropertyExpressionType)
+            {
+                throw new IncorrectFilterArgumentStructureError($"Left operand of the filter expression has to be a property accessor . You provided {expression.Left.GetType().Name}");
+            }
+            
+            BlBinaryExpression resultExpression = new BlBinaryExpression();
+
+            switch (expression.NodeType)
+            {
+                case ExpressionType.Equal:
+                {
+                    resultExpression.Operator = BlOperator.Eq;
+                    break;
+                }
+                case ExpressionType.NotEqual:
+                {
+                    resultExpression.Operator = BlOperator.NotEq;
+                    break;
+                }
+                case ExpressionType.GreaterThan:
+                {
+                    resultExpression.Operator = BlOperator.Grt;
+                    break;
+                }
+                case ExpressionType.GreaterThanOrEqual:
+                {
+                    resultExpression.Operator = BlOperator.GrtOrEq;
+                    break;
+                }
+                case ExpressionType.LessThan:
+                {
+                    resultExpression.Operator = BlOperator.Ls;
+                    break;
+                }
+                case ExpressionType.LessThanOrEqual:
+                {
+                    resultExpression.Operator = BlOperator.LsOrEq;
+                    break;
+                }
+                default:
+                {
+                    //todo: replace with custom exception
+                    throw new NotSupportedException("incorrect binary operator");
+                }
+            }
+
+            if (expression.Left is MemberExpression propAccessor)
+            {
+                resultExpression.PropName = propAccessor.Member.Name;
+            }
+            resultExpression.Value = Expression.Lambda(expression.Right).Compile().DynamicInvoke();
+            resultExpression.IsLeaf = true;
+
+            return resultExpression;
         }
 
         private string ResolveSortExpression<TPawn>(Expression<Func<TPawn, object>> sortProperty) where TPawn : BlsPawn, new()
@@ -297,6 +344,13 @@ namespace BLS
             public BlsPawn From { get; set; }
             public BlsPawn To { get; set; }
             public string RelationName { get; set; }
+        }
+    }
+
+    internal class IncorrectFilterArgumentStructureError : Exception
+    {
+        public IncorrectFilterArgumentStructureError(string message) : base(message)
+        {
         }
     }
 }

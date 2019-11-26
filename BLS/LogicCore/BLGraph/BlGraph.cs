@@ -174,7 +174,7 @@ namespace BLS
                                 DateTime earliestValue;
                                 DateTime latestValue;
 
-                                if (dRes.Earliest == "")
+                                if (string.IsNullOrEmpty(dRes.Earliest))
                                 {
                                     earliestValue = DateTime.MinValue;
                                 }
@@ -187,7 +187,7 @@ namespace BLS
                                     }
                                 }
 
-                                if (dRes.Latest == "")
+                                if (string.IsNullOrEmpty(dRes.Latest))
                                 {
                                     latestValue = DateTime.MaxValue;
                                 }

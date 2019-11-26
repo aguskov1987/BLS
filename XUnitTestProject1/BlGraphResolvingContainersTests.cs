@@ -198,7 +198,7 @@ namespace BLS.Tests
             var graph = BuildGraph();
 
             // Act & Assert
-            Assert.Throws<InvalidRestrictiveAttributeError>(() =>
+            Assert.Throws<DisallowedPawnProperty>(() =>
             {
                 graph.ResolveContainerMetadataFromPawnSubClass(new PawnWithCollectionPropAndNumericRestriction());
             });
@@ -255,7 +255,7 @@ namespace BLS.Tests
             {
                 Assert.Equal("MaturityDate", prop.Name);
                 Assert.Equal(typeof(DateTime), prop.PropType);
-                Assert.Equal("", prop.LatestDate.ToString(CultureInfo.InvariantCulture));
+                Assert.Equal("01/01/2020 00:00:00", prop.LatestDate.ToString(CultureInfo.InvariantCulture));
             },prop =>
             {
                 Assert.Equal("Created", prop.Name);

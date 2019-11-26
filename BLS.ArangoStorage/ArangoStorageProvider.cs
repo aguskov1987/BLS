@@ -17,14 +17,14 @@ namespace BLS.ArangoStorage
             throw new NotImplementedException();
         }
 
-        public StorageCursor<T> FindInContainer<T>(string containerName, BinaryExpression filter = null, string sortProperty = null,
+        public StorageCursor<T> FindInContainer<T>(string containerName, BlBinaryExpression filter = null, string sortProperty = null,
             string sortOrder = null) where T : BlsPawn
         {
             throw new NotImplementedException();
         }
 
         public StorageCursor<T> SearchInContainer<T>(string containerName, List<string> propertiesToSearch, string term,
-            BinaryExpression filter = null, string sortProperty = null, string sortOrder = null) where T : BlsPawn
+            BlBinaryExpression filter = null, string sortProperty = null, string sortOrder = null) where T : BlsPawn
         {
             throw new NotImplementedException();
         }
