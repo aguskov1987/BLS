@@ -31,6 +31,8 @@ namespace BLS
         // dependency on internal Expression implementation as these types are internal and are subject to changes
         private string PropertyExpressionType = "PropertyExpression";
         private string ConstantExpressionType = "ConstantExpression";
+        private string LogicalBinaryExpression = "LogicalBinaryExpression";
+        private string MethodBinaryExpression = "MethodBinaryExpression";
         
         private IBlGraph _graph;
         private IBlStorageProvider _storageProvider;
@@ -278,6 +280,61 @@ namespace BLS
                 throw new IncorrectFilterArgumentStructureError($"Filter expression has to be a binary expression. You provided {filter.Body.Type}");
             }
 
+            if (expression.GetType().Name == MethodBinaryExpression)
+            {
+                return ResolveComparisonExpression(expression);
+            }
+
+            if (expression.GetType().Name == LogicalBinaryExpression)
+            {
+                return ResolveBinaryExpression(expression, new BlBinaryExpression());
+            }
+
+            throw new IncorrectFilterArgumentStructureError($"Filter expression has to be a binary expression. You provided {filter.Body.Type}");
+        }
+
+        private BlBinaryExpression ResolveBinaryExpression(BinaryExpression expression, BlBinaryExpression newExpression)
+        {
+            newExpression.Left = new BlBinaryExpression();
+            newExpression.Right = new BlBinaryExpression();
+            
+            switch (expression.NodeType)
+            {
+                case ExpressionType.AndAlso:
+                {
+                    newExpression.Operator = BlOperator.And;
+                    break;
+                }
+                case ExpressionType.OrElse:
+                {
+                    newExpression.Operator = BlOperator.Or;
+                    break;
+                }
+            }
+            
+            if (expression.Left.GetType().Name == MethodBinaryExpression)
+            {
+                newExpression.Left = ResolveComparisonExpression(expression.Left as BinaryExpression);
+            }
+            else
+            {
+                newExpression.Left = ResolveBinaryExpression(expression.Left as BinaryExpression, newExpression.Left);
+            }
+            
+            if (expression.Right.GetType().Name == MethodBinaryExpression)
+            {
+                newExpression.Right = ResolveComparisonExpression(expression.Right as BinaryExpression);
+            }
+            else
+            {
+                newExpression.Right = ResolveBinaryExpression(expression.Right as BinaryExpression, newExpression.Right);
+            }
+            
+            return newExpression;
+        }
+
+        private BlBinaryExpression ResolveComparisonExpression(BinaryExpression expression)
+        {
             if (expression.Left.GetType().Name != PropertyExpressionType)
             {
                 throw new IncorrectFilterArgumentStructureError($"Left operand of the filter expression has to be a property accessor . You provided {expression.Left.GetType().Name}");
