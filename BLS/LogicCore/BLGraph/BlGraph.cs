@@ -19,8 +19,8 @@ namespace BLS
     internal class BlGraph : IBlGraph
     {
         private bool _compiled;
-        private List<BlGraphContainer> _compiledCollections = new List<BlGraphContainer>();
-        private List<BlGraphRelation> _compiledRelations = new List<BlGraphRelation>();
+        private readonly List<BlGraphContainer> _compiledCollections = new List<BlGraphContainer>();
+        private readonly List<BlGraphRelation> _compiledRelations = new List<BlGraphRelation>();
         private BlsPawn[] _pawns;
         private IStorageNamingEncoder _storageNamingEncoder;
 
@@ -45,11 +45,29 @@ namespace BLS
             }
 
             ResolveRelations();
+
+            _compiled = true;
         }
 
         public List<BlGraphContainer> CompiledCollections => _compiledCollections;
 
         public List<BlGraphRelation> CompiledRelations => _compiledRelations;
+
+        public void OverrideStorageNamingEncoder(IStorageNamingEncoder encoder)
+        {
+            _storageNamingEncoder = encoder;
+        }
+
+        public string GetStorageContainerNameForPawn(BlsPawn pawn)
+        {
+            return _storageNamingEncoder.EncodePawnContainerName(pawn.GetType().Name);
+        }
+
+        public string GetStorageRelationName<T>(Relation<T> relation) where T : BlsPawn, new()
+        {
+            return _storageNamingEncoder.EncodePawnRelationName(relation.SourcePawn.GetType().Name, typeof(T).Name,
+                relation.Multiplexer);
+        }
 
         public void VerifyUniqueNames(BlsPawn[] pawns)
         {
@@ -75,16 +93,6 @@ namespace BLS
             _compiledCollections.Add(container);
         }
 
-        public void OverrideStorageNamingEncoder(IStorageNamingEncoder encoder)
-        {
-            _storageNamingEncoder = encoder;
-        }
-
-        public string GetStorageContainerNameForPawn(BlsPawn pawn)
-        {
-            return _storageNamingEncoder.EncodePawnContainerName(pawn.GetType().Name);
-        }
-        
         private void ResolveRelations()
         {
             var nodes = new List<LoseNode>();
@@ -280,13 +288,18 @@ namespace BLS
                         Type objectType = obj.GetType().BaseType;
                         if (objectType != null)
                         {
-                            var mx = objectType.GetProperty("Multiplexer");
-                            if (mx != null)
+                            var mxProp = objectType.GetProperty("Multiplexer");
+                            var minProp = objectType.GetProperty("MinConnections");
+                            var maxProp = objectType.GetProperty("MaxConnections");
+                            if (mxProp != null)
                             {
-                                string mxName = mx.GetValue(obj).ToString();
+                                var min = minProp != null ? minProp.GetValue(obj) : 0;
+                                var max = maxProp != null ? maxProp.GetValue(obj) : int.MaxValue;
+
+                                string mxName = mxProp.GetValue(obj).ToString();
                                 var end = new LoseEnd
                                 {
-                                    ToName = relatedType.Name, Connected = false, Multiplexer = mxName
+                                    ToName = relatedType.Name, Multiplexer = mxName, MinConnections = (int)min, MaxConnections = (int)max
                                 };
                                 node.ConnectionPoints.Add(end);
                             }
@@ -304,11 +317,10 @@ namespace BLS
         {
             public string ToName { get; set; }
             public string Multiplexer { get; set; }
-            public bool Connected { get; set; }
-            
+
             public int MinConnections { get; set; }
             public int MaxConnections { get; set; }
-            
+
             public string EncodedConnectionName { get; set; }
         }
 

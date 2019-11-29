@@ -11,6 +11,13 @@ using ChangeTracking;
 [assembly: InternalsVisibleTo("DynamicProxyGenAssembly2")]
 namespace BLS
 {
+    [ExcludeFromCodeCoverage]
+    internal struct Connection
+    {
+        public BlsPawn From { get; set; }
+        public BlsPawn To { get; set; }
+        public string RelationName { get; set; }
+    }
     public enum BlOperator
     {
         And, Or, Eq, NotEq, Grt, Ls, GrtOrEq, LsOrEq
@@ -29,14 +36,15 @@ namespace BLS
 
     public class Bls
     {
-        private IBlGraph _graph;
-        private IBlStorageProvider _storageProvider;
+        internal IBlGraph Graph;
+        internal IBlStorageProvider StorageProvider;
 
-        private List<BlsPawn> _toAdd = new List<BlsPawn>();
-        private List<Connection> _toConnect = new List<Connection>();
-        private List<Connection> _toDisconnect = new List<Connection>();
+        internal List<BlsPawn> ToAddBuffer = new List<BlsPawn>();
+        internal List<Connection> ToConnect = new List<Connection>();
+        internal List<Connection> ToDisconnect = new List<Connection>();
         private List<BlsPawn> _toRemove = new List<BlsPawn>();
-        private List<BlsPawn> _toUpdate = new List<BlsPawn>();
+        internal List<BlsPawn> ToUpdate = new List<BlsPawn>();
+        
         private string ConstantExpressionType = "ConstantExpression";
         private string LogicalBinaryExpression = "LogicalBinaryExpression";
 
@@ -54,8 +62,8 @@ namespace BLS
         /// <param name="storageProvider">Storage provider</param>
         public Bls(IBlStorageProvider storageProvider)
         {
-            _storageProvider = storageProvider;
-            _graph = new BlGraph();
+            StorageProvider = storageProvider;
+            Graph = new BlGraph();
         }
 
         /// <summary>
@@ -68,8 +76,8 @@ namespace BLS
         /// <param name="graph"></param>
         internal Bls(IBlStorageProvider storageProvider, IBlGraph graph)
         {
-            _storageProvider = storageProvider;
-            _graph = graph;
+            StorageProvider = storageProvider;
+            Graph = graph;
         }
 
         /// <summary>
@@ -86,12 +94,12 @@ namespace BLS
         /// </example>
         public void RegisterBlPawns(params BlsPawn[] pawns)
         {
-            if (_graph == null)
+            if (Graph == null)
             {
-                _graph = new BlGraph();
+                Graph = new BlGraph();
             }
-            _graph.RegisterPawns(pawns);
-            _graph.CompileGraph();
+            Graph.RegisterPawns(pawns);
+            Graph.CompileGraph();
         }
 
         /// <summary>
@@ -107,18 +115,18 @@ namespace BLS
         /// </remarks>
         public TPawn SpawnNew<TPawn>() where TPawn : BlsPawn, new()
         {
-            if (_graph == null)
+            if (Graph == null)
             {
                 throw new BlGraphNotRegisteredError("BlGraph is not initialized");
             }
-            if (_graph != null && (_graph.CompiledCollections == null || _graph.CompiledCollections.Count < 1))
+            if (Graph != null && (Graph.CompiledCollections == null || Graph.CompiledCollections.Count < 1))
             {
                 throw new PawnNotRegisteredError(typeof(TPawn).Name);
             }
 
-            if (_graph != null)
+            if (Graph != null)
             {
-                var registeredPawns = _graph.CompiledCollections.Select(c => c.BlContainerName).ToArray();
+                var registeredPawns = Graph.CompiledCollections.Select(c => c.BlContainerName).ToArray();
                 if (registeredPawns.All(p => p != typeof(TPawn).Name))
                 {
                     throw new PawnNotRegisteredError(typeof(TPawn).Name);
@@ -132,7 +140,7 @@ namespace BLS
                 LastTimeModified = DateTime.Now
             };
             var traceablePawn = pawn.AsTrackable();
-            _toAdd.Add(traceablePawn);
+            ToAddBuffer.Add(traceablePawn);
             return traceablePawn;
         }
 
@@ -155,11 +163,11 @@ namespace BLS
             Sort sortDir = Sort.Asc,
             int batchSize = 200) where TPawn: BlsPawn, new()
         {
-            var container = _graph.GetStorageContainerNameForPawn(new TPawn());
+            var container = Graph.GetStorageContainerNameForPawn(new TPawn());
             BlBinaryExpression filterExpression = filter == null ? null : ResolveFilterExpression(filter);
             string sortProp = sortProperty == null ? null : ResolveSortExpression(sortProperty);
             
-            return _storageProvider.FindInContainer<TPawn>(container, filterExpression, sortProp, sortDir.ToString());
+            return StorageProvider.FindInContainer<TPawn>(container, filterExpression, sortProp, sortDir.ToString());
         }
 
         /// <summary>
@@ -198,10 +206,14 @@ namespace BLS
         /// <exception cref="NotImplementedException"></exception>
         public T GetById<T>(string id) where T : BlsPawn, new()
         {
-            var container = _graph.GetStorageContainerNameForPawn(new T());
-            if (_graph.CompiledCollections.Select(c => c.StorageContainerName).Any(c => c == container))
+            var container = Graph.GetStorageContainerNameForPawn(new T());
+            if (Graph.CompiledCollections.Select(c => c.StorageContainerName).Any(c => c == container))
             {
-                return _storageProvider.GetById<T>(id, container);
+                T result =  StorageProvider.GetById<T>(id, container);
+                result.SystemRef = this;
+                var traceable = result.AsTrackable();
+                ToUpdate.Add(traceable);
+                return traceable;
             }
 
             throw new PawnNotRegisteredError($"Pawn of type {typeof(T).Name} is not registered in BLS");
@@ -234,11 +246,11 @@ namespace BLS
         /// </remarks>
         public void Delete<TPawn>(TPawn pawn) where TPawn: BlsPawn
         {
-            _toConnect.RemoveAll(connection => connection.From == pawn || connection.To == pawn);
-            _toDisconnect.RemoveAll(connection => connection.From == pawn || connection.To == pawn);
-            if (_toAdd.Contains(pawn))
+            ToConnect.RemoveAll(connection => connection.From == pawn || connection.To == pawn);
+            ToDisconnect.RemoveAll(connection => connection.From == pawn || connection.To == pawn);
+            if (ToAddBuffer.Contains(pawn))
             {
-                _toAdd.Remove(pawn);
+                ToAddBuffer.Remove(pawn);
             }
             else
             {
@@ -254,7 +266,7 @@ namespace BLS
         /// <exception cref="NoStorageProviderRegisteredError">Thrown if there is no storage provider registered</exception>
         public void PersistChanges()
         {
-            if (_storageProvider == null)
+            if (StorageProvider == null)
             {
                 throw new NoStorageProviderRegisteredError();
             }
@@ -263,23 +275,29 @@ namespace BLS
         [ExcludeFromCodeCoverage] // pass through
         public void OverrideStorageNamingEncoder(IStorageNamingEncoder encoder)
         {
-            _graph.OverrideStorageNamingEncoder(encoder);
+            Graph.OverrideStorageNamingEncoder(encoder);
         }
 
         [ExcludeFromCodeCoverage] // pass through
         internal void Connect(BlsPawn source, BlsPawn target, string relation)
         {
-            _toConnect.Add(new Connection {From = source, To = target, RelationName = relation});
+            ToConnect.Add(new Connection {From = source, To = target, RelationName = relation});
         }
 
         [ExcludeFromCodeCoverage] // pass through
         internal void Disconnect(BlsPawn source, BlsPawn target, string relation)
         {
-            _toDisconnect.Add(new Connection {From = source, To = target, RelationName = relation});
+            ToConnect.RemoveAll(c => c.From == source && c.To == target && c.RelationName == relation);
+            ToDisconnect.Add(new Connection {From = source, To = target, RelationName = relation});
         }
 
-        private BlBinaryExpression ResolveFilterExpression<TPawn>(Expression<Func<TPawn, bool>> filter) where TPawn : BlsPawn, new()
+        internal BlBinaryExpression ResolveFilterExpression<TPawn>(Expression<Func<TPawn, bool>> filter) where TPawn : BlsPawn, new()
         {
+            if (filter == null)
+            {
+                return null;
+            }
+            
             if (!(filter.Body is BinaryExpression expression))
             {
                 throw new IncorrectFilterArgumentStructureError($"Filter expression has to be a binary expression. You provided {filter.Body.Type}");
@@ -401,14 +419,6 @@ namespace BLS
         private string ResolveSortExpression<TPawn>(Expression<Func<TPawn, object>> sortProperty) where TPawn : BlsPawn, new()
         {
             throw new NotImplementedException();
-        }
-
-        [ExcludeFromCodeCoverage]
-        struct Connection
-        {
-            public BlsPawn From { get; set; }
-            public BlsPawn To { get; set; }
-            public string RelationName { get; set; }
         }
     }
 }

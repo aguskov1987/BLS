@@ -34,7 +34,8 @@ namespace BLS.ArangoStorage
             throw new NotImplementedException();
         }
 
-        public StorageCursor<T> GetByRelation<T>(string fromId, string relationName, string containerName = null) where T : BlsPawn
+        public StorageCursor<T> GetByRelation<T>(string fromId, string relationName, string containerName = null,
+            BlBinaryExpression filter = null, int batchSize = 200) where T : BlsPawn
         {
             throw new NotImplementedException();
         }

@@ -71,8 +71,12 @@ namespace BLS
         /// <param name="fromId">ID of the source entity object</param>
         /// <param name="relationName">Name of the relation to look for</param>
         /// <param name="containerName">Name of the container of the related objects</param>
+        /// <param name="filter">Filter t apply to the result set</param>
+        /// <param name="existingCursor">Existing cursor which can already contain result from the bls buffer</param>
+        /// <param name="batchSize"></param>
         /// <returns>Cursor containing the result set</returns>
-        StorageCursor<T> GetByRelation<T>(string fromId, string relationName, string containerName = null) where T: BlsPawn;
+        StorageCursor<T> GetByRelation<T>(string fromId, string relationName, string containerName = null,
+            BlBinaryExpression filter = null, int batchSize = 200) where T: BlsPawn;
 
         /// <summary>
         /// Insert a new object

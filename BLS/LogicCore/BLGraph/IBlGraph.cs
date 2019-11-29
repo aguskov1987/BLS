@@ -10,5 +10,6 @@ namespace BLS
         List<BlGraphRelation> CompiledRelations { get; }
         void OverrideStorageNamingEncoder(IStorageNamingEncoder encoder);
         string GetStorageContainerNameForPawn(BlsPawn pawn);
+        string GetStorageRelationName<T>(Relation<T> relation) where T : BlsPawn, new();
     }
 }

@@ -47,11 +47,11 @@ namespace BLS.Tests
         }
 
         // Lawyers have access to their Assistants and Assistants can access their Lawyer
-        public RelatesToMany<Assistant> Assistants { get; set; }
+        public virtual RelatesToMany<Assistant> Assistants { get; set; }
         
         // Lawyer can access their clients. However, there is no requirement Clients need to access their Lawyer,
         // so the Client does not have a relation back to the Lawyer
-        public RelatesToMany<Client> Clients { get; set; }
+        public virtual RelatesToMany<Client> Clients { get; set; }
     }
 
     internal class Assistant : PawnPerson
@@ -61,7 +61,7 @@ namespace BLS.Tests
             Lawyer = new RelatesToOne<Lawyer>(this);
         }
 
-        public RelatesToOne<Lawyer> Lawyer { get; set; }
+        public virtual RelatesToOne<Lawyer> Lawyer { get; set; }
     }
 
     internal class Client : PawnPerson
@@ -71,7 +71,7 @@ namespace BLS.Tests
             Matters = new RelatesToMany<Matter>(this);
         }
 
-        public RelatesToMany<Matter> Matters { get; set; }
+        public virtual RelatesToMany<Matter> Matters { get; set; }
     }
 
     internal class LawFirm : BlsPawn
@@ -82,8 +82,9 @@ namespace BLS.Tests
             Assistants = new RelatesToMany<Assistant>(this);
         }
 
-        public RelatesToMany<Lawyer> Lawyers { get; set; }
-        public RelatesToMany<Assistant> Assistants { get; set; }
+        public virtual RelatesToMany<Lawyer> Lawyers { get; set; }
+        public virtual RelatesToMany<Assistant> Assistants { get; set; }
+        public virtual string Name { get; set; }
     }
 
     #endregion
