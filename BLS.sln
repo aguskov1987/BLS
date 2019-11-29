@@ -5,7 +5,7 @@ VisualStudioVersion = 15.0.28307.902
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BLS", "BLS\BLS.csproj", "{20BDAE94-3126-40E5-B64E-34456F2D7106}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BLS.Tests", "XUnitTestProject1\BLS.Tests.csproj", "{FA838ABB-2458-4298-B362-07D0F5186C45}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BLS.Tests", "BLS.Tests\BLS.Tests.csproj", "{FA838ABB-2458-4298-B362-07D0F5186C45}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BLS.ArangoStorage", "BLS.ArangoStorage\BLS.ArangoStorage.csproj", "{40BE3744-BC90-4394-898C-51EA6EC51A51}"
 EndProject

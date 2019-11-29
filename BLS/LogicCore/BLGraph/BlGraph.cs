@@ -109,7 +109,7 @@ namespace BLS
                 if (relationNames.Length > relationNames.Distinct().Count())
                 {
                     //todo: replace with custom exception
-                    throw new InvalidOperationException($"found duplicate relations in {node.PawnRef}");
+                    throw new DuplicateRelationInPawnError($"Duplicate relation was found in {node.Name}. If you have more than one relation to a pawn, consider using a multiplexer");
                 }
             }
 
@@ -320,5 +320,12 @@ namespace BLS
         }
 
         #endregion
+    }
+
+    internal class DuplicateRelationInPawnError : Exception
+    {
+        public DuplicateRelationInPawnError(string message) : base(message)
+        {
+        }
     }
 }

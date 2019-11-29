@@ -127,6 +127,7 @@ namespace BLS.Tests
     {
         public InvalidParent1()
         {
+            // two relations to the same pawn but no multiplexer
             Sons = new RelatesToMany<InvalidChild1>(this);
             Daughters = new RelatesToMany<InvalidChild1>(this);
         }
