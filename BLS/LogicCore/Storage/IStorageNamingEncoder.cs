@@ -7,7 +7,7 @@
     /// </summary>
     public interface IStorageNamingEncoder
     {
-        string EncodePawnContainerName(BlsPawn pawn);
-        string EncodePawnRelationName(BlsPawn source, BlsPawn target, string multiplexer);
+        string EncodePawnContainerName(string pawn);
+        string EncodePawnRelationName(string source, string target, string multiplexer);
     }
 }

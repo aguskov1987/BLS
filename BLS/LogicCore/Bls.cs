@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Runtime.CompilerServices;
@@ -20,7 +21,7 @@ namespace BLS
         public BlBinaryExpression Right { get; set; }
         public BlOperator Operator { get; set; }
         public BlBinaryExpression Left { get; set; }
-        
+
         public bool IsLeaf { get; set; }
         public string PropName { get; set; }
         public object Value { get; set; }
@@ -28,20 +29,21 @@ namespace BLS
 
     public class Bls
     {
-        // dependency on internal Expression implementation as these types are internal and are subject to changes
-        private string PropertyExpressionType = "PropertyExpression";
-        private string ConstantExpressionType = "ConstantExpression";
-        private string LogicalBinaryExpression = "LogicalBinaryExpression";
-        private string MethodBinaryExpression = "MethodBinaryExpression";
-        
         private IBlGraph _graph;
         private IBlStorageProvider _storageProvider;
-        
+
         private List<BlsPawn> _toAdd = new List<BlsPawn>();
-        private List<BlsPawn> _toUpdate = new List<BlsPawn>();
         private List<Connection> _toConnect = new List<Connection>();
         private List<Connection> _toDisconnect = new List<Connection>();
         private List<BlsPawn> _toRemove = new List<BlsPawn>();
+        private List<BlsPawn> _toUpdate = new List<BlsPawn>();
+        private string ConstantExpressionType = "ConstantExpression";
+        private string LogicalBinaryExpression = "LogicalBinaryExpression";
+
+        private string MethodBinaryExpression = "MethodBinaryExpression";
+
+        // dependency on internal Expression implementation as these types are internal and are subject to changes
+        private string PropertyExpressionType = "PropertyExpression";
 
         /// <summary>
         /// Use this constructor to create a new instance of the application's business logic.
@@ -258,21 +260,24 @@ namespace BLS
             }
         }
 
+        [ExcludeFromCodeCoverage] // pass through
         public void OverrideStorageNamingEncoder(IStorageNamingEncoder encoder)
         {
             _graph.OverrideStorageNamingEncoder(encoder);
         }
 
+        [ExcludeFromCodeCoverage] // pass through
         internal void Connect(BlsPawn source, BlsPawn target, string relation)
         {
             _toConnect.Add(new Connection {From = source, To = target, RelationName = relation});
         }
 
+        [ExcludeFromCodeCoverage] // pass through
         internal void Disconnect(BlsPawn source, BlsPawn target, string relation)
         {
             _toDisconnect.Add(new Connection {From = source, To = target, RelationName = relation});
         }
-        
+
         private BlBinaryExpression ResolveFilterExpression<TPawn>(Expression<Func<TPawn, bool>> filter) where TPawn : BlsPawn, new()
         {
             if (!(filter.Body is BinaryExpression expression))
@@ -282,18 +287,19 @@ namespace BLS
 
             if (expression.GetType().Name == MethodBinaryExpression)
             {
-                return ResolveComparisonExpression(expression);
+                return ResolveComparisonFilterExpression(expression);
             }
 
             if (expression.GetType().Name == LogicalBinaryExpression)
             {
-                return ResolveBinaryExpression(expression, new BlBinaryExpression());
+                return ResolveBinaryFilterExpression(expression, new BlBinaryExpression());
             }
 
             throw new IncorrectFilterArgumentStructureError($"Filter expression has to be a binary expression. You provided {filter.Body.Type}");
         }
 
-        private BlBinaryExpression ResolveBinaryExpression(BinaryExpression expression, BlBinaryExpression newExpression)
+        // recursive method to resolve AND/OR binary filter expressions
+        private BlBinaryExpression ResolveBinaryFilterExpression(BinaryExpression expression, BlBinaryExpression newExpression)
         {
             newExpression.Left = new BlBinaryExpression();
             newExpression.Right = new BlBinaryExpression();
@@ -314,26 +320,27 @@ namespace BLS
             
             if (expression.Left.GetType().Name == MethodBinaryExpression)
             {
-                newExpression.Left = ResolveComparisonExpression(expression.Left as BinaryExpression);
+                newExpression.Left = ResolveComparisonFilterExpression(expression.Left as BinaryExpression);
             }
             else
             {
-                newExpression.Left = ResolveBinaryExpression(expression.Left as BinaryExpression, newExpression.Left);
+                newExpression.Left = ResolveBinaryFilterExpression(expression.Left as BinaryExpression, newExpression.Left);
             }
             
             if (expression.Right.GetType().Name == MethodBinaryExpression)
             {
-                newExpression.Right = ResolveComparisonExpression(expression.Right as BinaryExpression);
+                newExpression.Right = ResolveComparisonFilterExpression(expression.Right as BinaryExpression);
             }
             else
             {
-                newExpression.Right = ResolveBinaryExpression(expression.Right as BinaryExpression, newExpression.Right);
+                newExpression.Right = ResolveBinaryFilterExpression(expression.Right as BinaryExpression, newExpression.Right);
             }
             
             return newExpression;
         }
 
-        private BlBinaryExpression ResolveComparisonExpression(BinaryExpression expression)
+        // method to resolve final comparison (==, !=, >, etc.) expressions in the filter expression
+        private BlBinaryExpression ResolveComparisonFilterExpression(BinaryExpression expression)
         {
             if (expression.Left.GetType().Name != PropertyExpressionType)
             {
@@ -396,18 +403,12 @@ namespace BLS
             throw new NotImplementedException();
         }
 
+        [ExcludeFromCodeCoverage]
         struct Connection
         {
             public BlsPawn From { get; set; }
             public BlsPawn To { get; set; }
             public string RelationName { get; set; }
-        }
-    }
-
-    internal class IncorrectFilterArgumentStructureError : Exception
-    {
-        public IncorrectFilterArgumentStructureError(string message) : base(message)
-        {
         }
     }
 }

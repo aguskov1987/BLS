@@ -1,18 +1,21 @@
-﻿namespace BLS
+﻿using System.Linq;
+
+namespace BLS
 {
     /// <summary>
     /// Naive naming encoder
     /// </summary>
     internal class NaiveStorageNamingEncoder : IStorageNamingEncoder
     {
-        public string EncodePawnContainerName(BlsPawn pawn)
+        public string EncodePawnContainerName(string pawn)
         {
-            return pawn.GetType().Name;
+            return pawn;
         }
 
-        public string EncodePawnRelationName(BlsPawn source, BlsPawn target, string multiplexer)
+        public string EncodePawnRelationName(string source, string target, string multiplexer)
         {
-            return $"{source.GetType().Name}{multiplexer}{target.GetType().Name}";
+            var containers = new[] {source, target}.OrderBy(c => c).ToArray();
+            return $"{containers[0]}{multiplexer}{containers[1]}";
         }
     }
 }

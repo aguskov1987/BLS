@@ -14,7 +14,7 @@ namespace BLS
         }
 
         internal BlsPawn SourcePawn { get; }
-        internal string Multiplexer { get; }
+        public string Multiplexer { get; }
         internal int MinConnections { get; }
         internal int MaxConnections { get; }
         

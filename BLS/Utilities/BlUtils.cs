@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq.Expressions;
 using System.Runtime.CompilerServices;
 
@@ -9,6 +10,7 @@ namespace BLS.Utilities
 {
     internal static class BlUtils
     {
+        [ExcludeFromCodeCoverage]
         public static List<string> ResolvePropertyNameArrayExpression<T>(
             Expression<Func<T,string[]>> searchProperties) where T : BlsPawn
         {
@@ -41,8 +43,9 @@ namespace BLS.Utilities
             return result;
         }
         
+        [ExcludeFromCodeCoverage]
         public static bool IsNumericType(Type tp)
-        {   
+        {
             switch (Type.GetTypeCode(tp))
             {
                 case TypeCode.Byte:

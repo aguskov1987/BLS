@@ -43,6 +43,7 @@ namespace BLS
             {
                 ResolveContainerMetadataFromPawnSubClass(pawn);
             }
+
             ResolveRelations();
         }
 
@@ -67,7 +68,7 @@ namespace BLS
             {
                 Properties = new List<BlContainerProp>(),
                 BlContainerName = pawn.GetType().Name,
-                StorageContainerName = _storageNamingEncoder.EncodePawnContainerName(pawn)
+                StorageContainerName = _storageNamingEncoder.EncodePawnContainerName(pawn.GetType().Name)
             };
 
             container = ResolveContainerProps(container, pawn);
@@ -81,10 +82,10 @@ namespace BLS
 
         public string GetStorageContainerNameForPawn(BlsPawn pawn)
         {
-            return _storageNamingEncoder.EncodePawnContainerName(pawn);
+            return _storageNamingEncoder.EncodePawnContainerName(pawn.GetType().Name);
         }
-
-        public void ResolveRelations()
+        
+        private void ResolveRelations()
         {
             var nodes = new List<LoseNode>();
             foreach (BlsPawn pawn in _pawns)
@@ -92,29 +93,65 @@ namespace BLS
                 LoseNode node = ConvertToLoseNode(pawn);
                 nodes.Add(node);
             }
+
+            var allUniqueRelations = new HashSet<string>();
+            
+            foreach (LoseNode node in nodes)
+            {
+                foreach (LoseEnd end in node.ConnectionPoints)
+                {
+                    end.EncodedConnectionName =
+                        _storageNamingEncoder.EncodePawnRelationName(node.Name, end.ToName, end.Multiplexer);
+                    allUniqueRelations.Add(end.EncodedConnectionName);
+                }
+
+                var relationNames = node.ConnectionPoints.Select(n => n.EncodedConnectionName).ToArray();
+                if (relationNames.Length > relationNames.Distinct().Count())
+                {
+                    //todo: replace with custom exception
+                    throw new InvalidOperationException($"found duplicate relations in {node.PawnRef}");
+                }
+            }
+
+            foreach (LoseNode node in nodes)
+            {
+                foreach (LoseEnd end in node.ConnectionPoints)
+                {
+                    var relation = new BlGraphRelation
+                    {
+                        SourceContainer = CompiledCollections.FirstOrDefault(c => c.BlContainerName == node.Name),
+                        TargetContainer = CompiledCollections.FirstOrDefault(c => c.BlContainerName == end.ToName),
+                        MaxConnections =  end.MaxConnections,
+                        MinConnections = end.MinConnections,
+                        RelationName = _storageNamingEncoder.EncodePawnRelationName(node.Name, end.ToName, end.Multiplexer)
+                    };
+                    CompiledRelations.Add(relation);
+                }
+            }
         }
 
         private BlGraphContainer ResolveContainerProps(BlGraphContainer container, BlsPawn pawn)
         {
             var softDeleteFlagUsed = false;
-            
+
             List<PropertyInfo> properties = pawn.GetType().GetProperties().ToList();
             foreach (PropertyInfo property in properties)
             {
                 Type propType = property.PropertyType;
-                
+
                 if (BlUtils.IsEnumerableType(propType) && propType != typeof(string))
                 {
-                    throw new DisallowedPawnProperty($"Collection properties are not allowed in pawns: {property.Name} of {pawn.GetType().Name}");
+                    throw new DisallowedPawnPropertyError(
+                        $"Collection properties are not allowed in pawns: {property.Name} of {pawn.GetType().Name}");
                 }
-                
+
                 Attribute[] attributes = property.GetCustomAttributes().ToArray();
-                
+
                 var blProp = new BlContainerProp();
                 if (property.CanRead && property.CanWrite)
                 {
                     container.Properties.Add(blProp);
-                    
+
                     blProp.Name = property.Name;
                     blProp.PropType = propType;
 
@@ -126,8 +163,10 @@ namespace BLS
                             {
                                 if (softDeleteFlagUsed)
                                 {
-                                    throw new DuplicateSoftDeletionFlagError($"Attempting to declare second soft deletion flag in pawn {blProp.Name}. Only one soft deletion property is allowed per pawn");
+                                    throw new DuplicateSoftDeletionFlagError(
+                                        $"Attempting to declare second soft deletion flag in pawn {blProp.Name}. Only one soft deletion property is allowed per pawn");
                                 }
+
                                 blProp.IsSoftDeleteProp = true;
                                 softDeleteFlagUsed = true;
                             }
@@ -136,7 +175,8 @@ namespace BLS
                             {
                                 if (blProp.PropType != typeof(string))
                                 {
-                                    throw new InvalidFullTextSearchAttributeError($"Attempting to apply a full text search attribute to a non-string property {blProp.Name} of {container.BlContainerName}");
+                                    throw new InvalidFullTextSearchAttributeError(
+                                        $"Attempting to apply a full text search attribute to a non-string property {blProp.Name} of {container.BlContainerName}");
                                 }
 
                                 blProp.IsSearchable = true;
@@ -146,7 +186,8 @@ namespace BLS
                             {
                                 if (blProp.PropType != typeof(string))
                                 {
-                                    throw new InvalidRestrictiveAttributeError($"Attempting to apply a string attribute to a non-string property {blProp.Name} of {container.BlContainerName}");
+                                    throw new InvalidRestrictiveAttributeError(
+                                        $"Attempting to apply a string attribute to a non-string property {blProp.Name} of {container.BlContainerName}");
                                 }
 
                                 blProp.MinChar = sRes.MinCharacters;
@@ -157,7 +198,8 @@ namespace BLS
                             {
                                 if (!BlUtils.IsNumericType(blProp.PropType))
                                 {
-                                    throw new InvalidRestrictiveAttributeError($"Attempting to apply a numeric attribute to a non-number property {blProp.Name} of {container.BlContainerName}");
+                                    throw new InvalidRestrictiveAttributeError(
+                                        $"Attempting to apply a numeric attribute to a non-number property {blProp.Name} of {container.BlContainerName}");
                                 }
 
                                 blProp.MinValue = nRes.Minimum;
@@ -168,7 +210,8 @@ namespace BLS
                             {
                                 if (blProp.PropType != typeof(DateTime))
                                 {
-                                    throw new InvalidRestrictiveAttributeError($"Attempting to apply a date restriction attribute to a non-date property {blProp.Name} of {container.BlContainerName}");
+                                    throw new InvalidRestrictiveAttributeError(
+                                        $"Attempting to apply a date restriction attribute to a non-date property {blProp.Name} of {container.BlContainerName}");
                                 }
 
                                 DateTime earliestValue;
@@ -183,7 +226,8 @@ namespace BLS
                                     var parsed = DateTime.TryParse(dRes.Earliest, out earliestValue);
                                     if (!parsed)
                                     {
-                                        throw new InvalidRestrictiveAttributeError($"Date restriction attribute is not in correct format: {blProp.Name} of {container.BlContainerName}");
+                                        throw new InvalidRestrictiveAttributeError(
+                                            $"Date restriction attribute is not in correct format: {blProp.Name} of {container.BlContainerName}");
                                     }
                                 }
 
@@ -196,7 +240,8 @@ namespace BLS
                                     var parsed = DateTime.TryParse(dRes.Latest, out latestValue);
                                     if (!parsed)
                                     {
-                                        throw new InvalidRestrictiveAttributeError($"Date restriction attribute is not in correct format: {blProp.Name} of {container.BlContainerName}");
+                                        throw new InvalidRestrictiveAttributeError(
+                                            $"Date restriction attribute is not in correct format: {blProp.Name} of {container.BlContainerName}");
                                     }
                                 }
 
@@ -213,71 +258,67 @@ namespace BLS
 
         private LoseNode ConvertToLoseNode(BlsPawn pawn)
         {
-            throw new System.NotImplementedException();
+            var node = new LoseNode
+            {
+                PawnRef = pawn, Name = pawn.GetType().Name, ConnectionPoints = new List<LoseEnd>()
+            };
+
+            List<PropertyInfo> properties = pawn.GetType().GetProperties().ToList();
+            foreach (PropertyInfo property in properties)
+            {
+                var propType = property.PropertyType;
+                if (propType.BaseType != null
+                    && propType.BaseType.Name == typeof(Relation<>).Name
+                    && propType.IsGenericType
+                    && propType.GenericTypeArguments.Length == 1)
+                {
+                    Type relatedType = propType.GenericTypeArguments[0];
+                    object obj = pawn.GetType().GetProperty(property.Name)?.GetValue(pawn, null);
+
+                    if (obj != null)
+                    {
+                        Type objectType = obj.GetType().BaseType;
+                        if (objectType != null)
+                        {
+                            var mx = objectType.GetProperty("Multiplexer");
+                            if (mx != null)
+                            {
+                                string mxName = mx.GetValue(obj).ToString();
+                                var end = new LoseEnd
+                                {
+                                    ToName = relatedType.Name, Connected = false, Multiplexer = mxName
+                                };
+                                node.ConnectionPoints.Add(end);
+                            }
+                        }
+                    }
+                }
+            }
+
+            return node;
         }
 
         #region Helper structures
 
-        struct LoseEnd
+        class LoseEnd
         {
-            public BlsPawn ToPawnRef { get; set; }
             public string ToName { get; set; }
             public string Multiplexer { get; set; }
             public bool Connected { get; set; }
+            
+            public int MinConnections { get; set; }
+            public int MaxConnections { get; set; }
+            
+            public string EncodedConnectionName { get; set; }
         }
 
-        struct LoseNode
+        class LoseNode
         {
             public BlsPawn PawnRef { get; set; }
             public string Name { get; set; }
-            public LoseEnd[] ConnectionPoints { get; set; }
+            public List<LoseEnd> ConnectionPoints { get; set; }
         }
 
         #endregion
     }
-
-    internal class DisallowedPawnProperty : Exception
-    {
-        public DisallowedPawnProperty(string message) : base(message)
-        {
-        }
-    }
 }
-
-//public void AddEntityWithRelation(ConnectedPawn entityType)
-//{
-//Type tp = entityType.GetType();
-//ConnectedEntity entity = new ConnectedEntity {SourceName = tp.Name};
-//
-//List<PropertyInfo> properties = tp.GetProperties().ToList();
-//    foreach (PropertyInfo property in properties)
-//{
-//    var propType = property.PropertyType;
-//    if (propType.BaseType != null
-//        && propType.Name.Contains("RelatesTo")
-//        && propType.BaseType.Name == typeof(Relation<>).Name
-//        && propType.IsGenericType
-//        && propType.GenericTypeArguments.Length == 1)
-//    {
-//        Type relatedType = propType.GenericTypeArguments[0];
-//
-//        var obj = entityType.GetType().GetProperty(property.Name)?.GetValue(entityType, null);
-//        if (obj != null)
-//        {
-//            Type objectType = obj.GetType().BaseType;
-//            if (objectType != null)
-//            {
-//                var mx = objectType.GetProperty("Multiplexer");
-//                string mxName = mx.GetValue(obj).ToString();
-//                var connection = new Connection
-//                {
-//                    TargetName = relatedType.Name,
-//                    Mx = mxName
-//                };
-//                entity.Targets.Add(connection);
-//            }
-//        }
-//    }
-//}
-//_entities.Add(entity);
-//}

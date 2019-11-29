@@ -4,12 +4,15 @@ using System.Globalization;
 using BLS.Functional;
 using BLS.PropertyValidation;
 using Xunit;
+
 // ReSharper disable UnusedMember.Local
 
 namespace BLS.Tests
 {
     public class BlGraphResolvingContainersTests
     {
+        #region Test helpers
+
         class Client : BlsPawn
         {
             // privates are allowed and should not affect the output of the bl graph compilation
@@ -19,22 +22,18 @@ namespace BLS.Tests
             [FullTextSearchable]
             [StringLengthRestriction(MinCharacters = 2, MaxCharacters = 100)]
             public string FirstName { get; set; }
-            
-            [FullTextSearchable]
-            public string LastName { get; set; }
+
+            [FullTextSearchable] public string LastName { get; set; }
 
             // numeric properties can have numeric restrictions. If no limit is specified
             // min is set to 0 and max is set to int.MaxValue
-            [NumberRestriction]
-            public int TotalNumberOfOrders { get; set; }
+            [NumberRestriction] public int TotalNumberOfOrders { get; set; }
 
-            [NumberRestriction(Maximum = 10)]
-            public int NumberOfActiveOrders { get; set; }
+            [NumberRestriction(Maximum = 10)] public int NumberOfActiveOrders { get; set; }
 
             // properties can be used as soft delete flags if marked with the
             // attribute. Only one per pawn is allowed
-            [UsedForSoftDeletes]
-            public bool Active { get; set; }
+            [UsedForSoftDeletes] public bool Active { get; set; }
 
             // collections can have minimum and maximum count restriction if the attribute is applied
             [DateRestriction(Latest = "2020-01-01")]
@@ -54,22 +53,18 @@ namespace BLS.Tests
 
         class PawnWithTwoSoftDeleteFlags : BlsPawn
         {
-            [UsedForSoftDeletes]
-            public bool Flag1 { get; set; }
-            [UsedForSoftDeletes]
-            public bool Flag2 { get; set; }
+            [UsedForSoftDeletes] public bool Flag1 { get; set; }
+            [UsedForSoftDeletes] public bool Flag2 { get; set; }
         }
 
         class PawnWithFtsOnNonStringProp : BlsPawn
         {
-            [FullTextSearchable]
-            public int Prop { get; set; }
+            [FullTextSearchable] public int Prop { get; set; }
         }
-        
+
         class PawnWithStringPropAndNumericRestriction : BlsPawn
         {
-            [NumberRestriction]
-            public string Prop { get; set; }
+            [NumberRestriction] public string Prop { get; set; }
         }
 
         class PawnWithStringPropAndDateRestriction : BlsPawn
@@ -80,14 +75,12 @@ namespace BLS.Tests
 
         class PawnWithIntPropAndStringRestriction : BlsPawn
         {
-            [StringLengthRestriction]
-            public int Prop { get; set; }
+            [StringLengthRestriction] public int Prop { get; set; }
         }
 
         class PawnWithFloatPropAndStringRestriction : BlsPawn
         {
-            [StringLengthRestriction]
-            public float Prop { get; set; }
+            [StringLengthRestriction] public float Prop { get; set; }
         }
 
         class PawnWithCollectionPropAndNumericRestriction : BlsPawn
@@ -112,9 +105,11 @@ namespace BLS.Tests
             });
             return graph;
         }
-        
+
+        #endregion
+
         [Fact]
-        public void ShouldFailToBindIfSecondSoftDeleteFlagIsFound()
+        public void should_fail_to_bind_if_second_soft_delete_flag_is_found()
         {
             // Setup
             var graph = BuildGraph();
@@ -125,9 +120,9 @@ namespace BLS.Tests
                 graph.ResolveContainerMetadataFromPawnSubClass(new PawnWithTwoSoftDeleteFlags());
             });
         }
-        
+
         [Fact]
-        public void ShouldFailToBindFtxIfNotStringProp()
+        public void should_fail_to_bind_ftx_if_not_string_prop()
         {
             // Setup
             var graph = BuildGraph();
@@ -140,20 +135,20 @@ namespace BLS.Tests
         }
 
         [Fact]
-        public void ShouldFailToBindNumericRestrictionToStringProp()
+        public void should_fail_to_bind_numeric_restriction_to_string_prop()
         {
             // Setup
             var graph = BuildGraph();
 
             // Act & Assert
             Assert.Throws<InvalidRestrictiveAttributeError>(() =>
-                {
-                    graph.ResolveContainerMetadataFromPawnSubClass(new PawnWithStringPropAndNumericRestriction());
-                });
+            {
+                graph.ResolveContainerMetadataFromPawnSubClass(new PawnWithStringPropAndNumericRestriction());
+            });
         }
 
         [Fact]
-        public void ShouldFailToBindCollectionRestrictionToStringProp()
+        public void should_fail_to_bind_collection_restriction_to_string_prop()
         {
             // Setup
             var graph = BuildGraph();
@@ -164,9 +159,9 @@ namespace BLS.Tests
                 graph.ResolveContainerMetadataFromPawnSubClass(new PawnWithStringPropAndDateRestriction());
             });
         }
-        
+
         [Fact]
-        public void ShouldFailToBindStringRestrictionToIntProp()
+        public void should_fail_to_bind_string_restriction_to_int_prop()
         {
             // Setup
             var graph = BuildGraph();
@@ -177,9 +172,9 @@ namespace BLS.Tests
                 graph.ResolveContainerMetadataFromPawnSubClass(new PawnWithIntPropAndStringRestriction());
             });
         }
-        
+
         [Fact]
-        public void ShouldFailToBindStringRestrictionToFloatProp()
+        public void should_fail_to_bind_string_restriction_to_float_prop()
         {
             // Setup
             var graph = BuildGraph();
@@ -190,22 +185,22 @@ namespace BLS.Tests
                 graph.ResolveContainerMetadataFromPawnSubClass(new PawnWithFloatPropAndStringRestriction());
             });
         }
-        
+
         [Fact]
-        public void ShouldFailToBindNumericRestrictionToCollectionProp()
+        public void should_fail_to_bind_numeric_restriction_to_collection_prop()
         {
             // Setup
             var graph = BuildGraph();
 
             // Act & Assert
-            Assert.Throws<DisallowedPawnProperty>(() =>
+            Assert.Throws<DisallowedPawnPropertyError>(() =>
             {
                 graph.ResolveContainerMetadataFromPawnSubClass(new PawnWithCollectionPropAndNumericRestriction());
             });
         }
 
         [Fact]
-        public void ShouldResolvePawnMetadata()
+        public void should_resolve_pawn_metadata()
         {
             // Setup
             var graph = BuildGraph();
@@ -221,7 +216,7 @@ namespace BLS.Tests
             Assert.Equal("Client", compiledCollection.StorageContainerName);
 
             Assert.NotEmpty(compiledCollection.Properties);
-            
+
             Assert.Collection(compiledCollection.Properties, prop =>
             {
                 Assert.Equal("FirstName", prop.Name);
@@ -256,7 +251,7 @@ namespace BLS.Tests
                 Assert.Equal("MaturityDate", prop.Name);
                 Assert.Equal(typeof(DateTime), prop.PropType);
                 Assert.Equal("01/01/2020 00:00:00", prop.LatestDate.ToString(CultureInfo.InvariantCulture));
-            },prop =>
+            }, prop =>
             {
                 Assert.Equal("Created", prop.Name);
                 Assert.Equal(typeof(DateTime), prop.PropType);

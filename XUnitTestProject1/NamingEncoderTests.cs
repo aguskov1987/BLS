@@ -14,7 +14,7 @@ namespace BLS.Tests
             var encoder = new NaiveStorageNamingEncoder();
 
             // Act
-            var encoded = encoder.EncodePawnContainerName(new FirstPawn());
+            var encoded = encoder.EncodePawnContainerName(new FirstPawn().GetType().Name);
 
             // Assert
             Assert.Equal("FirstPawn", encoded);
@@ -27,7 +27,7 @@ namespace BLS.Tests
             var encoder = new NaiveStorageNamingEncoder();
 
             // Act
-            var encoded = encoder.EncodePawnRelationName(new FirstPawn(), new SecondPawn(), "");
+            var encoded = encoder.EncodePawnRelationName(new FirstPawn().GetType().Name, new SecondPawn().GetType().Name, "");
 
             // Assert
             Assert.Equal("FirstPawnSecondPawn", encoded);
@@ -40,7 +40,7 @@ namespace BLS.Tests
             var encoder = new NaiveStorageNamingEncoder();
 
             // Act
-            var encoded = encoder.EncodePawnRelationName(new FirstPawn(), new SecondPawn(), "Relates");
+            var encoded = encoder.EncodePawnRelationName(new FirstPawn().GetType().Name, new SecondPawn().GetType().Name, "Relates");
 
             // Assert
             Assert.Equal("FirstPawnRelatesSecondPawn", encoded);

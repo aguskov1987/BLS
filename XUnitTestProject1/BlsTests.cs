@@ -8,6 +8,16 @@ namespace BLS.Tests
     public class BlsTests
     {
         [Fact]
+        public void should_fail_to_persist_if_no_storage_provider_is_set()
+        {
+            // Setup
+            var bls = new Bls(null, null);
+
+            // Act & Assert
+            Assert.Throws<NoStorageProviderRegisteredError>(() => {bls.PersistChanges();});
+        }
+        
+        [Fact]
         public void should_be_able_to_find_all_pawns()
         {
             // Setup
