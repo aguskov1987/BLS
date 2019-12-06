@@ -9,6 +9,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BLS.Tests", "BLS.Tests\BLS.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BLS.ArangoStorage", "BLS.ArangoStorage\BLS.ArangoStorage.csproj", "{40BE3744-BC90-4394-898C-51EA6EC51A51}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BLS.SQLiteStorage", "BLS.SQLiteStorage\BLS.SQLiteStorage.csproj", "{3F13F4B4-3880-43D2-9C3E-3760BB63204A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BLS.SQLiteStorage.Tests", "BLS.SQLiteStorage.Tests\BLS.SQLiteStorage.Tests.csproj", "{A7FF8E26-987E-4FDC-BC5D-B837D535D841}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +31,14 @@ Global
 		{40BE3744-BC90-4394-898C-51EA6EC51A51}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{40BE3744-BC90-4394-898C-51EA6EC51A51}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{40BE3744-BC90-4394-898C-51EA6EC51A51}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3F13F4B4-3880-43D2-9C3E-3760BB63204A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3F13F4B4-3880-43D2-9C3E-3760BB63204A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3F13F4B4-3880-43D2-9C3E-3760BB63204A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3F13F4B4-3880-43D2-9C3E-3760BB63204A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A7FF8E26-987E-4FDC-BC5D-B837D535D841}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A7FF8E26-987E-4FDC-BC5D-B837D535D841}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A7FF8E26-987E-4FDC-BC5D-B837D535D841}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A7FF8E26-987E-4FDC-BC5D-B837D535D841}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

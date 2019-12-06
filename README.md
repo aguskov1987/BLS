@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/aguskov1987/BLS.svg?branch=master)](https://travis-ci.org/aguskov1987/BLS)
+
 # BLS
 # This library is in active development
 BLS is a library aimed to provide support in developing application business logic in C#. Much like the famous front-end frameworks such as Angular or React, BLS's main goal is to provide a structure on which backend developers would be able to build a reliable and maintainable business model. While still in active development, the framework is being build to provide the user with the following features:
