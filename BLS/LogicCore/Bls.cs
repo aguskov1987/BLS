@@ -36,22 +36,27 @@ namespace BLS
 
     public class Bls
     {
-        internal IBlGraph Graph;
-        internal IBlStorageProvider StorageProvider;
-
-        internal List<BlsPawn> ToAddBuffer = new List<BlsPawn>();
-        internal List<Connection> ToConnect = new List<Connection>();
-        internal List<Connection> ToDisconnect = new List<Connection>();
-        private List<BlsPawn> _toRemove = new List<BlsPawn>();
-        internal List<BlsPawn> ToUpdate = new List<BlsPawn>();
-        
+        // dependency on internal Expression implementation as these types are internal and are subject to changes
         private string ConstantExpressionType = "ConstantExpression";
+
+        internal IBlGraph Graph;
+
+        // dependency on internal Expression implementation as these types are internal and are subject to changes
         private string LogicalBinaryExpression = "LogicalBinaryExpression";
 
+        // dependency on internal Expression implementation as these types are internal and are subject to changes
         private string MethodBinaryExpression = "MethodBinaryExpression";
 
         // dependency on internal Expression implementation as these types are internal and are subject to changes
         private string PropertyExpressionType = "PropertyExpression";
+
+        internal readonly IBlStorageProvider StorageProvider;
+
+        internal readonly List<BlsPawn> ToAddBuffer = new List<BlsPawn>();
+        internal readonly List<Connection> ToConnect = new List<Connection>();
+        internal readonly List<Connection> ToDisconnect = new List<Connection>();
+        internal readonly List<BlsPawn> ToRemove = new List<BlsPawn>();
+        internal readonly List<BlsPawn> ToUpdate = new List<BlsPawn>();
 
         /// <summary>
         /// Use this constructor to create a new instance of the application's business logic.
@@ -254,7 +259,7 @@ namespace BLS
             }
             else
             {
-                _toRemove.Add(pawn);
+                ToRemove.Add(pawn);
             }
         }
 

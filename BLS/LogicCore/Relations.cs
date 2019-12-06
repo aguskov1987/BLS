@@ -47,13 +47,36 @@ namespace BLS
         }
     }
 
+    /// <summary>
+    /// Use this type to create a one-to-many relation.
+    /// </summary>
+    /// <typeparam name="T">Type of the pawn object</typeparam>
     public sealed class RelatesToMany<T> : Relation<T> where T : BlsPawn, new()
     {
+        /// <summary>
+        /// Create a new one-to-many relation
+        /// </summary>
+        /// <param name="source">Source pawn</param>
+        /// <param name="multiplexer">A string used to specify a unique relation in case more than one relation exists
+        /// for one particular of pawn</param>
+        /// <param name="min">Minimum allowed number of connected pawn objects; defaults to 0</param>
+        /// <param name="max">Maximum allowed number of connected pawn objects; defaults to <see cref="int.MaxValue"/></param>
         public RelatesToMany(BlsPawn source, string multiplexer = "", int min = 0, int max = int.MaxValue)
             : base(source, multiplexer, min, max)
         {
         }
         
+        /// <summary>
+        /// Use this method to retrieve related objects of the certain <typeparam name="T"></typeparam> type. The method
+        /// returns a cursor which contains pawns in storage as well as pawns currently sitting in the BLS memory
+        /// </summary>
+        /// <param name="filter">Optional filter to apply to the result set; the filter will be applied to both the im-memory
+        /// and in-storage data</param>
+        /// <param name="includeSoftDeleted">If set to true, the method ignores soft-delete flag if one is available on the
+        /// pawn model. Set to false by default</param>
+        /// <param name="batchSize">Controls the size of the batch of each incremental retrieval of pawns from storage. Defaults to 200 objects</param>
+        /// <returns>Cursor containing the result set</returns>
+        /// <exception cref="InvalidOperationException"></exception>
         public StorageCursor<T> Find(Expression<Func<T, bool>> filter = null, bool includeSoftDeleted = false, int batchSize = 200)
         {
             Connection[] connections = SourcePawn.SystemRef.ToConnect.Where(c => c.From == SourcePawn).ToArray();
@@ -105,6 +128,13 @@ namespace BLS
             }
         }
 
+        /// <summary>
+        /// Call the method to get number of related pawns. The result will include both in-storage and in-memory pawns
+        /// </summary>
+        /// <param name="includeSotDeleted">If set to true, the method ignores soft-delete flag if one is available on the
+        /// pawn model. Set to false by default</param>
+        /// <returns>Number of related pawns</returns>
+        /// <exception cref="NotImplementedException"></exception>
         public int GetCount(bool includeSotDeleted = false)
         {
             throw new NotImplementedException();
