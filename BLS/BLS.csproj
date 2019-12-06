@@ -6,6 +6,7 @@
 
   <ItemGroup>
     <PackageReference Include="ChangeTracking" Version="2.2.17" />
+    <PackageReference Include="CRC32C.Standard" Version="1.0.0" />
     <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
     <PackageReference Include="RestSharp" Version="106.6.10" />
   </ItemGroup>

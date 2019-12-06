@@ -4,11 +4,14 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Runtime.CompilerServices;
+using BLS.Syncing;
 using ChangeTracking;
+
 // ReSharper disable InvalidXmlDocComment
 
 [assembly: InternalsVisibleTo("BLS.Tests")]
 [assembly: InternalsVisibleTo("DynamicProxyGenAssembly2")]
+
 namespace BLS
 {
     [ExcludeFromCodeCoverage]
@@ -18,9 +21,17 @@ namespace BLS
         public BlsPawn To { get; set; }
         public string RelationName { get; set; }
     }
+
     public enum BlOperator
     {
-        And, Or, Eq, NotEq, Grt, Ls, GrtOrEq, LsOrEq
+        And,
+        Or,
+        Eq,
+        NotEq,
+        Grt,
+        Ls,
+        GrtOrEq,
+        LsOrEq
     }
 
     public class BlBinaryExpression
@@ -36,22 +47,20 @@ namespace BLS
 
     public class Bls
     {
+        private List<BlsPawn> _toRemove = new List<BlsPawn>();
         internal IBlGraph Graph;
+
+        private string LogicalBinaryExpression = "LogicalBinaryExpression";
+
+        private string MethodBinaryExpression = "MethodBinaryExpression";
+
+        private string PropertyExpressionType = "PropertyExpression";
         internal IBlStorageProvider StorageProvider;
 
         internal List<BlsPawn> ToAddBuffer = new List<BlsPawn>();
         internal List<Connection> ToConnect = new List<Connection>();
         internal List<Connection> ToDisconnect = new List<Connection>();
-        private List<BlsPawn> _toRemove = new List<BlsPawn>();
         internal List<BlsPawn> ToUpdate = new List<BlsPawn>();
-        
-        private string ConstantExpressionType = "ConstantExpression";
-        private string LogicalBinaryExpression = "LogicalBinaryExpression";
-
-        private string MethodBinaryExpression = "MethodBinaryExpression";
-
-        // dependency on internal Expression implementation as these types are internal and are subject to changes
-        private string PropertyExpressionType = "PropertyExpression";
 
         /// <summary>
         /// Use this constructor to create a new instance of the application's business logic.
@@ -98,8 +107,25 @@ namespace BLS
             {
                 Graph = new BlGraph();
             }
+
             Graph.RegisterPawns(pawns);
             Graph.CompileGraph();
+        }
+
+        /// <summary>
+        /// Call this method to sync compiled BL graph with the storage.
+        /// </summary>
+        /// <param name="validationOnly">If set to true (default to false), the storage engine
+        /// will not make any persistent storage change. Only <see cref="SyncPlan"/> will be generated</param>
+        /// <exception cref="InvalidOperationException"></exception>
+        public SyncPlan SyncWithStorage(bool validationOnly = false)
+        {
+            if (Graph.CompiledCollections.Count > 0)
+            {
+                StorageProvider.Sync(Graph.CompiledCollections, Graph.CompiledRelations);
+            }
+
+            throw new InvalidOperationException("there are no pawns in the graph");
         }
 
         /// <summary>
@@ -119,6 +145,7 @@ namespace BLS
             {
                 throw new BlGraphNotRegisteredError("BlGraph is not initialized");
             }
+
             if (Graph != null && (Graph.CompiledCollections == null || Graph.CompiledCollections.Count < 1))
             {
                 throw new PawnNotRegisteredError(typeof(TPawn).Name);
@@ -161,12 +188,12 @@ namespace BLS
             Expression<Func<TPawn, bool>> filter = null,
             Expression<Func<TPawn, object>> sortProperty = null,
             Sort sortDir = Sort.Asc,
-            int batchSize = 200) where TPawn: BlsPawn, new()
+            int batchSize = 200) where TPawn : BlsPawn, new()
         {
             var container = Graph.GetStorageContainerNameForPawn(new TPawn());
             BlBinaryExpression filterExpression = filter == null ? null : ResolveFilterExpression(filter);
             string sortProp = sortProperty == null ? null : ResolveSortExpression(sortProperty);
-            
+
             return StorageProvider.FindInContainer<TPawn>(container, filterExpression, sortProp, sortDir.ToString());
         }
 
@@ -192,7 +219,7 @@ namespace BLS
             Expression<Func<TPawn, object>> sortProperty = null,
             Sort sortDir = Sort.Asc,
             int batchSize = 200,
-            params Expression<Func<TPawn, string>>[] searchProperties) where TPawn: BlsPawn, new()
+            params Expression<Func<TPawn, string>>[] searchProperties) where TPawn : BlsPawn, new()
         {
             throw new NotImplementedException();
         }
@@ -209,7 +236,7 @@ namespace BLS
             var container = Graph.GetStorageContainerNameForPawn(new T());
             if (Graph.CompiledCollections.Select(c => c.StorageContainerName).Any(c => c == container))
             {
-                T result =  StorageProvider.GetById<T>(id, container);
+                T result = StorageProvider.GetById<T>(id, container);
                 result.SystemRef = this;
                 var traceable = result.AsTrackable();
                 ToUpdate.Add(traceable);
@@ -231,20 +258,24 @@ namespace BLS
         /// <typeparam name="T">Type of the result object; does not have to be a pawn</typeparam>
         /// <returns></returns>
         /// <exception cref="NotImplementedException"></exception>
-        public StorageCursor<T> GetByQuery<T>(string query) where T: new()
+        public StorageCursor<T> GetByQuery<T>(string query) where T : new()
         {
             throw new NotImplementedException();
         }
 
         /// <summary>
-        /// Call this method to delete a pawn
+        /// Call this method to delete a pawn. By default, if the pawn is still connected to other pawns
+        /// throw a relation, the method will throw an exception. If you want to remove any relations for
+        /// the pawn being deleted, you can set the default <param name="errorOutIfConnected"></param> parameter
+        /// to false. In this case, any relations the pawn is in, will be removed before the pawn itself is
+        /// deleted.
         /// </summary>
         /// <param name="pawn">Pawn to delete</param>
+        /// <param name="errorOutIfConnected"></param>
         /// <typeparam name="TPawn">Type of the pawn</typeparam>
-        /// <remarks>Deletions will NOT be saved in storage unless you call the
-        /// <see cref="PersistChanges()"/> method.
+        /// <remarks>Deletions will NOT be saved in storage unless you call the<see cref="PersistChanges()"/> method.
         /// </remarks>
-        public void Delete<TPawn>(TPawn pawn) where TPawn: BlsPawn
+        public void Delete<TPawn>(TPawn pawn, bool errorOutIfConnected = true) where TPawn : BlsPawn
         {
             ToConnect.RemoveAll(connection => connection.From == pawn || connection.To == pawn);
             ToDisconnect.RemoveAll(connection => connection.From == pawn || connection.To == pawn);
@@ -272,6 +303,16 @@ namespace BLS
             }
         }
 
+        /// <summary>
+        /// Call this method to override the default naming encoder for container and relation names.
+        /// Different storage providers may require different rules as how containers and relations are
+        /// names. The default implementation uses CRC32 hashing to encode names of the containers and
+        /// relation into consistent 8-byte strings. If you opt out to use your own naming encoder
+        /// (for readability reasons, for example, as hashes are not back-readable), please keep in mind
+        /// that encoded names of containers and relations must be unique, just like the names of pawns and
+        /// and their relations have to be unique to correctly resolve the model.
+        /// </summary>
+        /// <param name="encoder">Implementation of the <see cref="IStorageNamingEncoder"/> interface</param>
         [ExcludeFromCodeCoverage] // pass through
         public void OverrideStorageNamingEncoder(IStorageNamingEncoder encoder)
         {
@@ -284,23 +325,24 @@ namespace BLS
             ToConnect.Add(new Connection {From = source, To = target, RelationName = relation});
         }
 
-        [ExcludeFromCodeCoverage] // pass through
         internal void Disconnect(BlsPawn source, BlsPawn target, string relation)
         {
             ToConnect.RemoveAll(c => c.From == source && c.To == target && c.RelationName == relation);
             ToDisconnect.Add(new Connection {From = source, To = target, RelationName = relation});
         }
 
-        internal BlBinaryExpression ResolveFilterExpression<TPawn>(Expression<Func<TPawn, bool>> filter) where TPawn : BlsPawn, new()
+        internal BlBinaryExpression ResolveFilterExpression<TPawn>(Expression<Func<TPawn, bool>> filter)
+            where TPawn : BlsPawn, new()
         {
             if (filter == null)
             {
                 return null;
             }
-            
+
             if (!(filter.Body is BinaryExpression expression))
             {
-                throw new IncorrectFilterArgumentStructureError($"Filter expression has to be a binary expression. You provided {filter.Body.Type}");
+                throw new IncorrectFilterArgumentStructureError(
+                    $"Filter expression has to be a binary expression. You provided {filter.Body.Type}");
             }
 
             if (expression.GetType().Name == MethodBinaryExpression)
@@ -313,15 +355,17 @@ namespace BLS
                 return ResolveBinaryFilterExpression(expression, new BlBinaryExpression());
             }
 
-            throw new IncorrectFilterArgumentStructureError($"Filter expression has to be a binary expression. You provided {filter.Body.Type}");
+            throw new IncorrectFilterArgumentStructureError(
+                $"Filter expression has to be a binary expression. You provided {filter.Body.Type}");
         }
 
         // recursive method to resolve AND/OR binary filter expressions
-        private BlBinaryExpression ResolveBinaryFilterExpression(BinaryExpression expression, BlBinaryExpression newExpression)
+        private BlBinaryExpression ResolveBinaryFilterExpression(BinaryExpression expression,
+            BlBinaryExpression newExpression)
         {
             newExpression.Left = new BlBinaryExpression();
             newExpression.Right = new BlBinaryExpression();
-            
+
             switch (expression.NodeType)
             {
                 case ExpressionType.AndAlso:
@@ -335,25 +379,27 @@ namespace BLS
                     break;
                 }
             }
-            
+
             if (expression.Left.GetType().Name == MethodBinaryExpression)
             {
                 newExpression.Left = ResolveComparisonFilterExpression(expression.Left as BinaryExpression);
             }
             else
             {
-                newExpression.Left = ResolveBinaryFilterExpression(expression.Left as BinaryExpression, newExpression.Left);
+                newExpression.Left =
+                    ResolveBinaryFilterExpression(expression.Left as BinaryExpression, newExpression.Left);
             }
-            
+
             if (expression.Right.GetType().Name == MethodBinaryExpression)
             {
                 newExpression.Right = ResolveComparisonFilterExpression(expression.Right as BinaryExpression);
             }
             else
             {
-                newExpression.Right = ResolveBinaryFilterExpression(expression.Right as BinaryExpression, newExpression.Right);
+                newExpression.Right =
+                    ResolveBinaryFilterExpression(expression.Right as BinaryExpression, newExpression.Right);
             }
-            
+
             return newExpression;
         }
 
@@ -362,9 +408,10 @@ namespace BLS
         {
             if (expression.Left.GetType().Name != PropertyExpressionType)
             {
-                throw new IncorrectFilterArgumentStructureError($"Left operand of the filter expression has to be a property accessor . You provided {expression.Left.GetType().Name}");
+                throw new IncorrectFilterArgumentStructureError(
+                    $"Left operand of the filter expression has to be a property accessor . You provided {expression.Left.GetType().Name}");
             }
-            
+
             BlBinaryExpression resultExpression = new BlBinaryExpression();
 
             switch (expression.NodeType)
@@ -410,13 +457,15 @@ namespace BLS
             {
                 resultExpression.PropName = propAccessor.Member.Name;
             }
+
             resultExpression.Value = Expression.Lambda(expression.Right).Compile().DynamicInvoke();
             resultExpression.IsLeaf = true;
 
             return resultExpression;
         }
 
-        private string ResolveSortExpression<TPawn>(Expression<Func<TPawn, object>> sortProperty) where TPawn : BlsPawn, new()
+        private string ResolveSortExpression<TPawn>(Expression<Func<TPawn, object>> sortProperty)
+            where TPawn : BlsPawn, new()
         {
             throw new NotImplementedException();
         }

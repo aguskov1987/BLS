@@ -18,5 +18,13 @@ namespace BLS
         public class UsedForSoftDeletes : Attribute
         {
         }
+
+        /// <summary>
+        /// Attach this attribute to a property to use it for sorting unless explicit sort is used
+        /// in a query. The property must be a string, number of boolean.
+        /// </summary>
+        public class DefaultSort : Attribute
+        {
+        }
     }
 }

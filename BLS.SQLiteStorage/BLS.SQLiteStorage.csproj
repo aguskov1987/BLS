@@ -1,0 +1,15 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>netcoreapp2.1</TargetFramework>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <PackageReference Include="System.Data.SQLite" Version="1.0.112" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\BLS\BLS.csproj" />
+    </ItemGroup>
+
+</Project>
