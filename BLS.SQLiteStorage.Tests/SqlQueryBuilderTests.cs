@@ -49,7 +49,7 @@ namespace BLS.SQLiteStorage.Tests
                 ByteProp INTEGER,
                 SByteProp INTEGER,
                 BoolProp INTEGER
-                )";
+                );";
 
             Assert.Equal(
                 statement.Replace("\n", "").Replace("\r", "").Replace(" ", ""),

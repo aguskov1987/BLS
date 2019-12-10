@@ -9,6 +9,7 @@ namespace BLS.SQLiteStorage
         {
             var conStr = "Data Source=:memory:;Version=3;New=True;";
             var db = new SQLiteConnection(conStr);
+            
             db.Open();
             var command = db.CreateCommand();
             command.CommandText = "CREATE TABLE test (id integer PRIMARY KEY, text varchar(100));";

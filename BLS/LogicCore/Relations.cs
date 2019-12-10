@@ -101,13 +101,13 @@ namespace BLS
                 // if there is no id, the pawn has not been saved yet so there only return in-memory relations
                 if (string.IsNullOrEmpty(id))
                 {
-                    return new StorageCursor<T>().AttachInMemPawns(connectedPawns);
+                    return new StorageCursor<T>().AttachInMemoryPawns(connectedPawns);
                 }
                 
                 // otherwise, also check the storage
                 var cursorFromStorage =
                     SourcePawn.SystemRef.StorageProvider.GetByRelation<T>(id, relationName, containerName, null, batchSize);
-                return cursorFromStorage.AttachInMemPawns(connectedPawns);
+                return cursorFromStorage.AttachInMemoryPawns(connectedPawns);
             }
 
             // the rest of the code assumes the filter is not null
@@ -115,7 +115,7 @@ namespace BLS
             {
                 List<T> foundRelations = connections.Select(c => (T) c.To).ToList();
                 var connectedPawns = foundRelations.Where(filter.Compile()).ToList();
-                return new StorageCursor<T>().AttachInMemPawns(connectedPawns);
+                return new StorageCursor<T>().AttachInMemoryPawns(connectedPawns);
             }
             else
             {
@@ -124,7 +124,7 @@ namespace BLS
                 BlBinaryExpression storageFilterExpression = SourcePawn.SystemRef.ResolveFilterExpression(filter);
                 StorageCursor<T> cursorFromStorage =
                     SourcePawn.SystemRef.StorageProvider.GetByRelation<T>(id, relationName, containerName, storageFilterExpression, batchSize);
-                return cursorFromStorage.AttachInMemPawns(connectedPawns);
+                return cursorFromStorage.AttachInMemoryPawns(connectedPawns);
             }
         }
 

@@ -8,7 +8,7 @@ namespace BLS
     /// <summary>
     /// Storage Cursor is the class you use to access pawns in storage as well as in BLS memory (pawns which need to be added for example)
     /// </summary>
-    /// <typeparam name="T"></typeparam>
+    /// <typeparam name="T">Type of the business object</typeparam>
     public class StorageCursor<T>
     {
         private string _cursorId;
@@ -38,12 +38,20 @@ namespace BLS
             return BlsInMemoryCursorBuffer;
         }
 
+        /// <summary>
+        /// Call this method to return all results of the cursor. The method will return
+        /// the storage data as well as any in-memory data. Please exercise caution when using this routine -
+        /// it will retrieve every object from the storage (which can be a lot) and place it into memory. It is
+        /// advised that this method is only used on small to medium datasets to prevent memory overload
+        /// </summary>
+        /// <returns>List of business objects of type <typeparam name="T"></typeparam></returns>
         public List<T> GetAll()
         {
+            // TODO: fully load the storage before returning the result
             return BlsInMemoryCursorBuffer.Concat(StorageObjectBuffer).ToList();
         }
 
-        internal StorageCursor<T> AttachInMemPawns(List<T> pawns)
+        internal StorageCursor<T> AttachInMemoryPawns(List<T> pawns)
         {
             BlsInMemoryCursorBuffer = pawns;
             return this;

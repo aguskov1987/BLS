@@ -7,13 +7,16 @@ namespace BLS.SQLiteStorage
 {
     /// <summary>
     /// This is an implementation of the <see cref="IBlStorageProvider"/> using the popular SQLite
-    /// in-memory database. Tables are used as containers and foreign keys are used as relations.
+    /// in-memory database. Containers are implemented using tables. Relations are also implemented
+    /// using tables with foreign keys to the container tables.
     /// </summary>
     public class SqLiteStorageProvider : IBlStorageProvider
     {
+        private List<SqLiteCursor> _cursors;
         public SqLiteStorageProvider()
         {
             ProviderDetails = new SqLiteDetails();
+            _cursors = new List<SqLiteCursor>();
         }
 
         public IStorageProviderDetails ProviderDetails { get; }

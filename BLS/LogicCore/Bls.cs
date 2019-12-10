@@ -14,37 +14,6 @@ using ChangeTracking;
 
 namespace BLS
 {
-    [ExcludeFromCodeCoverage]
-    internal struct Connection
-    {
-        public BlsPawn From { get; set; }
-        public BlsPawn To { get; set; }
-        public string RelationName { get; set; }
-    }
-
-    public enum BlOperator
-    {
-        And,
-        Or,
-        Eq,
-        NotEq,
-        Grt,
-        Ls,
-        GrtOrEq,
-        LsOrEq
-    }
-
-    public class BlBinaryExpression
-    {
-        public BlBinaryExpression Right { get; set; }
-        public BlOperator Operator { get; set; }
-        public BlBinaryExpression Left { get; set; }
-
-        public bool IsLeaf { get; set; }
-        public string PropName { get; set; }
-        public object Value { get; set; }
-    }
-
     public class Bls
     {
         internal IBlGraph Graph;
