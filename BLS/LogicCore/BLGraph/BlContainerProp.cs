@@ -14,5 +14,7 @@ namespace BLS
         public int MinChar { get; set; }
         public DateTime EarliestDate { get; set; }
         public DateTime LatestDate { get; set; }
+        
+        public bool IsDefaultSort { get; set; }
     }
 }

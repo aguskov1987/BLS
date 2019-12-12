@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Linq.Expressions;
@@ -16,6 +17,20 @@ namespace BLS
 {
     public class Bls
     {
+        internal readonly IBlStorageProvider StorageProvider;
+
+        // new pawns to save to storage
+        internal readonly List<BlsPawn> ToAddBuffer = new List<BlsPawn>();
+
+        // changes in relations
+        internal readonly List<Connection> ToConnect = new List<Connection>();
+        internal readonly List<Connection> ToDisconnect = new List<Connection>();
+
+        // pawns to remove from storage
+        internal readonly List<BlsPawn> ToRemove = new List<BlsPawn>();
+
+        // pawns retrieved from storage and assumed to be updated
+        internal readonly Dictionary<string, BlsPawn> ToUpdate = new Dictionary<string, BlsPawn>();
         internal IBlGraph Graph;
 
         // dependency on internal Expression implementation as these types are internal and are subject to changes
@@ -26,14 +41,6 @@ namespace BLS
 
         // dependency on internal Expression implementation as these types are internal and are subject to changes
         private string PropertyExpressionType = "PropertyExpression";
-
-        internal readonly IBlStorageProvider StorageProvider;
-
-        internal readonly List<BlsPawn> ToAddBuffer = new List<BlsPawn>();
-        internal readonly List<Connection> ToConnect = new List<Connection>();
-        internal readonly List<Connection> ToDisconnect = new List<Connection>();
-        internal readonly List<BlsPawn> ToRemove = new List<BlsPawn>();
-        internal readonly List<BlsPawn> ToUpdate = new List<BlsPawn>();
 
         /// <summary>
         /// Use this constructor to create a new instance of the application's business logic.
@@ -157,22 +164,39 @@ namespace BLS
         /// <returns>Storage Cursor containing the resulting collection of pawns</returns>
         /// <exception cref="NotImplementedException"></exception>
         public StorageCursor<TPawn> Find<TPawn>(
-            bool includeSoftDeleted = false,
             Expression<Func<TPawn, bool>> filter = null,
-            Expression<Func<TPawn, object>> sortProperty = null,
+            Expression<Func<TPawn, IComparable>> sortProperty = null,
             Sort sortDir = Sort.Asc,
+            bool includeSoftDeleted = false,
             int batchSize = 200) where TPawn : BlsPawn, new()
         {
-            var container = Graph.GetStorageContainerNameForPawn(new TPawn());
-            BlBinaryExpression filterExpression = filter == null ? null : ResolveFilterExpression(filter);
-            string sortProp = sortProperty == null ? null : ResolveSortExpression(sortProperty);
+            string container = Graph.GetStorageContainerNameForPawn(new TPawn());
+            BlBinaryExpression filterExpression = ResolveFilterExpression(filter);
+            filterExpression = ApplySoftDeleteFilterIfApplicable(includeSoftDeleted, filterExpression, new TPawn());
+            string sortProp = ResolveSortExpression(sortProperty);
 
-            return StorageProvider.FindInContainer<TPawn>(container, filterExpression, sortProp, sortDir.ToString());
+            var cursor = StorageProvider.FindInContainer<TPawn>(container, filterExpression, sortProp, sortDir.ToString(), batchSize);
+
+            var additions = ToAddBuffer
+                .Where(p => p.GetType() == typeof(TPawn))
+                .Cast<TPawn>();
+
+            var updates = ToUpdate
+                .Where(p => p.Value.GetType() == typeof(TPawn))
+                .Select(p => (TPawn) p.Value);
+
+            
+            if (filter == null)
+            {
+                cursor.AttachInMemoryPawns(additions.ToList()).AttachInMemoryPawns(updates.ToList());
+            }
+
+            return cursor;
         }
 
         /// <summary>
         /// Call the method to search for pawns based on the search term, optionally specifying
-        /// any additional filters.
+        /// any additional filters and sort
         /// </summary>
         /// <param name="searchTerm">The term to search</param>
         /// <param name="filter">Boolean expression specifying any additional filter conditions</param>
@@ -187,14 +211,26 @@ namespace BLS
         /// <exception cref="NotImplementedException"></exception>
         public StorageCursor<TPawn> Search<TPawn>(
             string searchTerm,
-            bool includeSoftDeleted = false,
+            Expression<Func<TPawn, string[]>> searchProperties,
             Expression<Func<TPawn, bool>> filter = null,
-            Expression<Func<TPawn, object>> sortProperty = null,
+            Expression<Func<TPawn, IComparable>> sortProperty = null,
             Sort sortDir = Sort.Asc,
-            int batchSize = 200,
-            params Expression<Func<TPawn, string>>[] searchProperties) where TPawn : BlsPawn, new()
+            bool includeSoftDeleted = false,
+            int batchSize = 200) where TPawn : BlsPawn, new()
         {
-            throw new NotImplementedException();
+            var container = Graph.GetStorageContainerNameForPawn(new TPawn());
+            BlBinaryExpression filterExpression = ResolveFilterExpression(filter);
+            filterExpression = ApplySoftDeleteFilterIfApplicable(includeSoftDeleted, filterExpression, new TPawn());
+            string sortProp = ResolveSortExpression(sortProperty);
+
+            return StorageProvider.SearchInContainer<TPawn>(
+                container,
+                ResolveSearchProperties(searchProperties),
+                searchTerm,
+                filterExpression,
+                sortProp,
+                sortDir.ToString(),
+                batchSize);
         }
 
         /// <summary>
@@ -212,7 +248,7 @@ namespace BLS
                 T result = StorageProvider.GetById<T>(id, container);
                 result.SystemRef = this;
                 var traceable = result.AsTrackable();
-                ToUpdate.Add(traceable);
+                ToUpdate.Add(result.GetId(), traceable);
                 return traceable;
             }
 
@@ -229,11 +265,10 @@ namespace BLS
         /// </summary>
         /// <param name="query">Query to perform; the query is not verified and sent directly to the storage server</param>
         /// <typeparam name="T">Type of the result object; does not have to be a pawn</typeparam>
-        /// <returns></returns>
-        /// <exception cref="NotImplementedException"></exception>
-        public StorageCursor<T> GetByQuery<T>(string query) where T : new()
+        /// <returns>Cursor containing the result; only results from storage are returned</returns>
+        public StorageCursor<T> LoadFromStorageByQuery<T>(string query) where T : new()
         {
-            throw new NotImplementedException();
+            return StorageProvider.ExecuteQuery<T>(query);
         }
 
         /// <summary>
@@ -330,6 +365,54 @@ namespace BLS
 
             throw new IncorrectFilterArgumentStructureError(
                 $"Filter expression has to be a binary expression. You provided {filter.Body.Type}");
+        }
+
+        internal BlBinaryExpression ApplySoftDeleteFilterIfApplicable(bool includeDeleted, BlBinaryExpression filter, BlsPawn pawn)
+        {
+            string containerName = Graph.GetStorageContainerNameForPawn(pawn);
+            BlGraphContainer container = Graph.CompiledCollections.FirstOrDefault(c => c.StorageContainerName == containerName);
+            BlContainerProp softDeleteProp = container?.Properties.FirstOrDefault(prop => prop.IsSoftDeleteProp);
+
+            if (softDeleteProp == null)
+            {
+                return filter;
+            }
+            
+            var softDeleteClause = new BlBinaryExpression
+            {
+                PropName = softDeleteProp.Name, Operator = BlOperator.Eq, Value = includeDeleted
+            };
+            if (filter == null)
+            {
+                return softDeleteClause;
+            }
+
+            var newRoot = new BlBinaryExpression
+            {
+                Left = filter, Operator = BlOperator.And, Right = softDeleteClause
+            };
+            return newRoot;
+        }
+
+        internal string ResolveSortExpression<TPawn>(Expression<Func<TPawn, IComparable>> sortProperty)
+            where TPawn : BlsPawn, new()
+        {
+            if (sortProperty == null)
+            {
+                string containerName = Graph.GetStorageContainerNameForPawn(new TPawn());
+                BlGraphContainer container = Graph.CompiledCollections.FirstOrDefault(c => c.StorageContainerName == containerName);
+                BlContainerProp defaultSortProperty = container?.Properties.FirstOrDefault(p => p.IsDefaultSort);
+
+                return defaultSortProperty?.Name;
+            }
+            
+            Expression expression = sortProperty.Body;
+            if (expression is MemberExpression)
+            {
+                return expression.ToString().Split('.')[1];
+            }
+
+            throw new InvalidSortPropertyError($"Only property access expression are supported; you provided {expression.GetType().Name}");
         }
 
         // recursive method to resolve AND/OR binary filter expressions
@@ -436,11 +519,37 @@ namespace BLS
 
             return resultExpression;
         }
-
-        private string ResolveSortExpression<TPawn>(Expression<Func<TPawn, object>> sortProperty)
-            where TPawn : BlsPawn, new()
+        
+        private List<string> ResolveSearchProperties<TPawn>(Expression<Func<TPawn,string[]>> searchProperties) where TPawn : BlsPawn, new()
         {
-            throw new NotImplementedException();
+            NewArrayExpression newArray;
+            
+            try
+            {
+                newArray = (NewArrayExpression)searchProperties.Body;
+            }
+            catch (InvalidCastException ex)
+            {
+                throw new InvalidOperationException("Only array with property accessors are supported", ex);
+            }
+            
+            var result = new List<string>();
+            ReadOnlyCollection<Expression> items = newArray.Expressions;
+
+            foreach (var member in items)
+            {
+                if (member is MemberExpression)
+                {
+                    string propName = member.ToString().Split('.')[1];
+                    result.Add(propName);
+                }
+                else
+                {
+                    throw new InvalidOperationException("Only property access expression are supported in the array");
+                }
+            }
+
+            return result;
         }
     }
 }

@@ -23,7 +23,9 @@ namespace BLS.Tests
             // Setup
             var basicPawnContainer = new BlGraphContainer
             {
-                BlContainerName = "BasicPawn", StorageContainerName = "BasicPawn"
+                BlContainerName = "BasicPawn",
+                StorageContainerName = "BasicPawn",
+                Properties = new List<BlContainerProp>()
             };
             var containerList = new List<BlGraphContainer> {basicPawnContainer};
             var graphMock = new Mock<IBlGraph>();
@@ -34,7 +36,7 @@ namespace BLS.Tests
             var storageProviderMock = new Mock<IBlStorageProvider>();
             storageProviderMock
                 .Setup(provider =>
-                    provider.FindInContainer<BasicPawn>(It.IsAny<string>(), null, null, It.IsAny<string>()))
+                    provider.FindInContainer<BasicPawn>(It.IsAny<string>(), null, null, It.IsAny<string>(), 200))
                 .Returns(cursor);
             var bls = new Bls(storageProviderMock.Object, graphMock.Object);
             bls.RegisterBlPawns(new BasicPawn());
@@ -44,7 +46,7 @@ namespace BLS.Tests
 
             // Assert
             Assert.NotNull(resultCursor);
-            storageProviderMock.Verify(p => p.FindInContainer<BasicPawn>("BasicPawn", null, null, "Asc"));
+            storageProviderMock.Verify(p => p.FindInContainer<BasicPawn>("BasicPawn", null, null, "Asc", 200));
         }
 
         [Fact]
@@ -53,7 +55,9 @@ namespace BLS.Tests
             // Setup
             var basicPawnContainer = new BlGraphContainer
             {
-                BlContainerName = "BasicPawn", StorageContainerName = "BasicPawn"
+                BlContainerName = "BasicPawn",
+                StorageContainerName = "BasicPawn",
+                Properties = new List<BlContainerProp>()
             };
             var containerList = new List<BlGraphContainer> {basicPawnContainer};
             var graphMock = new Mock<IBlGraph>();
@@ -67,8 +71,8 @@ namespace BLS.Tests
             storageProviderMock
                 .Setup(provider =>
                     provider.FindInContainer<BasicPawn>(It.IsAny<string>(), It.IsAny<BlBinaryExpression>(), null,
-                        "Asc"))
-                .Callback<string, BlBinaryExpression, string, string>((container, exp, sort, order) =>
+                        "Asc", 200))
+                .Callback<string, BlBinaryExpression, string, string, int>((container, exp, sort, order, batchSize) =>
                     filterExpression = exp)
                 .Returns(cursor);
             var bls = new Bls(storageProviderMock.Object, graphMock.Object);
@@ -88,7 +92,9 @@ namespace BLS.Tests
             // Setup
             var basicPawnContainer = new BlGraphContainer
             {
-                BlContainerName = "BasicPawn", StorageContainerName = "BasicPawn"
+                BlContainerName = "BasicPawn",
+                StorageContainerName = "BasicPawn",
+                Properties = new List<BlContainerProp>()
             };
             var containerList = new List<BlGraphContainer> {basicPawnContainer};
             var graphMock = new Mock<IBlGraph>();
@@ -102,8 +108,8 @@ namespace BLS.Tests
             storageProviderMock
                 .Setup(provider =>
                     provider.FindInContainer<BasicPawn>(It.IsAny<string>(), It.IsAny<BlBinaryExpression>(), null,
-                        "Asc"))
-                .Callback<string, BlBinaryExpression, string, string>((container, exp, sort, order) =>
+                        "Asc", 200))
+                .Callback<string, BlBinaryExpression, string, string,int >((container, exp, sort, order, batchSize) =>
                     filterExpression = exp)
                 .Returns(cursor);
             var bls = new Bls(storageProviderMock.Object, graphMock.Object);
@@ -130,7 +136,9 @@ namespace BLS.Tests
             // Setup
             var basicPawnContainer = new BlGraphContainer
             {
-                BlContainerName = "BasicPawn", StorageContainerName = "BasicPawn"
+                BlContainerName = "BasicPawn",
+                StorageContainerName = "BasicPawn",
+                Properties = new List<BlContainerProp>()
             };
             var containerList = new List<BlGraphContainer> {basicPawnContainer};
             var graphMock = new Mock<IBlGraph>();
@@ -144,8 +152,8 @@ namespace BLS.Tests
             storageProviderMock
                 .Setup(provider =>
                     provider.FindInContainer<BasicPawn>(It.IsAny<string>(), It.IsAny<BlBinaryExpression>(), null,
-                        "Asc"))
-                .Callback<string, BlBinaryExpression, string, string>((container, exp, sort, order) =>
+                        "Asc", 200))
+                .Callback<string, BlBinaryExpression, string, string, int>((container, exp, sort, order, batchSize) =>
                     filterExpression = exp)
                 .Returns(cursor);
             var bls = new Bls(storageProviderMock.Object, graphMock.Object);
@@ -171,9 +179,13 @@ namespace BLS.Tests
         {
             // Setup
             var basicPawn = new BasicPawn {Name = "Name"};
+            basicPawn.SetId("123_id");
+            
             var basicPawnContainer = new BlGraphContainer
             {
-                BlContainerName = "BasicPawn", StorageContainerName = "BasicPawn"
+                BlContainerName = "BasicPawn",
+                StorageContainerName = "BasicPawn",
+                Properties = new List<BlContainerProp>()
             };
             var containerList = new List<BlGraphContainer> {basicPawnContainer};
             var graphMock = new Mock<IBlGraph>();
@@ -216,7 +228,7 @@ namespace BLS.Tests
             storageProviderMock
                 .Setup(provider =>
                     provider.FindInContainer<BasicPawn>(It.IsAny<string>(), It.IsAny<BlBinaryExpression>(), null,
-                        "Asc"))
+                        "Asc", 200))
                 .Returns(cursor);
             var bls = new Bls(storageProviderMock.Object, graphMock.Object);
             bls.RegisterBlPawns(new BasicPawn());
