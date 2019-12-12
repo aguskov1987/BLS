@@ -1,5 +1,4 @@
 ﻿using System.Collections.Generic;
-using System.Threading.Tasks.Dataflow;
 using ChangeTracking;
 using Moq;
 using Xunit;
@@ -14,12 +13,17 @@ namespace BLS.Tests
             // Setup
             var cursor = new StorageCursor<Lawyer>();
             var storedFirm = new LawFirm {Name = "LLP"};
+            storedFirm.SetId("firm_id");
 
             var storageProviderMock = new Mock<IBlStorageProvider>();
-            storageProviderMock.Setup(pr => pr.GetById<LawFirm>(
-                "law_firm_id",
-                "LawFirm"))
+            storageProviderMock
+                .Setup(pr => pr.GetById<LawFirm>("law_firm_id", "LawFirm"))
                 .Returns(storedFirm);
+
+            storageProviderMock
+                .Setup(pr => pr.GetByRelation<Lawyer>(It.IsAny<string>(),
+                    It.IsAny<string>(), It.IsAny<string>(), null, null, Sort.Asc, 200))
+                .Returns(cursor);
             
 
             var bls = new Bls(storageProviderMock.Object);
@@ -29,7 +33,6 @@ namespace BLS.Tests
             LawFirm firm = bls.GetById<LawFirm>("law_firm_id");
             Lawyer lawyer = bls.SpawnNew<Lawyer>();
             lawyer.FirstName = "George";
-            cursor.BlsInMemoryCursorBuffer.Add(lawyer);
             firm.Lawyers.Connect(lawyer);
 
             StorageCursor<Lawyer> cr = firm.Lawyers.Find();
@@ -46,12 +49,18 @@ namespace BLS.Tests
             // Setup
             var cursor = new StorageCursor<Lawyer>();
             var storedFirm = new LawFirm {Name = "LLP"};
+            storedFirm.SetId("firm_id");
 
             var storageProviderMock = new Mock<IBlStorageProvider>();
             storageProviderMock.Setup(pr => pr.GetById<LawFirm>(
                 "law_firm_id",
                 "LawFirm"))
                 .Returns(storedFirm);
+            
+            storageProviderMock
+                .Setup(pr => pr.GetByRelation<Lawyer>(It.IsAny<string>(),
+                    It.IsAny<string>(), It.IsAny<string>(), It.IsAny<BlBinaryExpression>(), null, Sort.Asc, 200))
+                .Returns(cursor);
             
 
             var bls = new Bls(storageProviderMock.Object);
@@ -62,7 +71,6 @@ namespace BLS.Tests
             
             Lawyer lawyer = bls.SpawnNew<Lawyer>();
             lawyer.FirstName = "George";
-            cursor.BlsInMemoryCursorBuffer.Add(lawyer);
             firm.Lawyers.Connect(lawyer);
             
             Lawyer lawyer2 = bls.SpawnNew<Lawyer>();
@@ -89,13 +97,19 @@ namespace BLS.Tests
             // Setup
             var cursor = new StorageCursor<Lawyer>();
             var storedFirm = new LawFirm {Name = "LLP"};
+            storedFirm.SetId("firm_id");
 
             var storageProviderMock = new Mock<IBlStorageProvider>();
+            
             storageProviderMock.Setup(pr => pr.GetById<LawFirm>(
                     "law_firm_id",
                     "LawFirm"))
                 .Returns(storedFirm);
             
+            storageProviderMock
+                .Setup(pr => pr.GetByRelation<Lawyer>(It.IsAny<string>(),
+                    It.IsAny<string>(), It.IsAny<string>(), null, null, Sort.Asc, 200))
+                .Returns(cursor);
 
             var bls = new Bls(storageProviderMock.Object);
             bls.RegisterBlPawns(new LawFirm(), new Lawyer(), new Assistant(), new Matter(), new Client());
@@ -104,7 +118,6 @@ namespace BLS.Tests
             LawFirm firm = bls.GetById<LawFirm>("law_firm_id");
             Lawyer lawyer = bls.SpawnNew<Lawyer>();
             lawyer.FirstName = "George";
-            cursor.BlsInMemoryCursorBuffer.Add(lawyer);
             firm.Lawyers.Connect(lawyer);
             firm.Lawyers.Disconnect(lawyer);
 
@@ -132,6 +145,8 @@ namespace BLS.Tests
                     It.IsAny<string>(),
                     It.IsAny<string>(),
                     null,
+                    null,
+                    Sort.Asc,
                     200))
                 .Returns(cursor)
                 .Verifiable();
@@ -156,7 +171,7 @@ namespace BLS.Tests
             existingLawyerInStorage.FirstName = "Peter";
             var traceableLawyer = existingLawyerInStorage.AsTrackable();
             cursor.StorageObjectBuffer.Add(traceableLawyer);
-            bls.ToUpdate.Add(traceableLawyer);
+            bls.ToUpdate.Add("lawyer_id", traceableLawyer);
 
             StorageCursor<Lawyer> cr = firm.Lawyers.Find();
             storageProviderMock.Verify();
@@ -164,7 +179,6 @@ namespace BLS.Tests
             List<Lawyer> pawns = cr.GetAll();
 
             // Assert
-            
             Assert.NotEmpty(pawns);
             Assert.Equal("George", pawns[0].FirstName);
             Assert.Equal("Peter", pawns[1].FirstName);

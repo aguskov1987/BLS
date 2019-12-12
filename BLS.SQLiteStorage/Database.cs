@@ -70,10 +70,9 @@ namespace BLS.SQLiteStorage
                         object convertedProp = Convert.ChangeType(value.Value.Item1, value.Value.Item2);
                         row.Add(value.Key, convertedProp);
                     }
-                    catch (InvalidCastException exception)
+                    catch (InvalidCastException ex)
                     {
-                        // TODO: replace with a custom error
-                        throw new InvalidCastException("invalid cast");
+                        throw new InvalidDataCastError($"Unable to cast property {value.Key}; trying to cast storage value of type {value.Value.Item1.GetType()} to {value.Value.Item2}", ex);
                     }
                 }
                 
@@ -91,6 +90,13 @@ namespace BLS.SQLiteStorage
                 DataSource = "database.sqlite", ForeignKeys = true, JournalMode = SQLiteJournalModeEnum.Memory, Version = 3
             };
             return builder.ToString();
+        }
+    }
+
+    internal class InvalidDataCastError : Exception
+    {
+        public InvalidDataCastError(string message, Exception innerException) : base(message, innerException)
+        {
         }
     }
 }

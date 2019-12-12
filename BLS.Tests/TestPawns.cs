@@ -2,6 +2,10 @@
 
 using System;
 using System.Runtime.CompilerServices;
+// ReSharper disable VirtualMemberCallInConstructor
+// ReSharper disable MemberCanBeProtected.Global
+// ReSharper disable UnusedAutoPropertyAccessor.Global
+// ReSharper disable MemberCanBePrivate.Global
 
 [assembly: InternalsVisibleTo("DynamicProxyGenAssembly2")]
 namespace BLS.Tests

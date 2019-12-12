@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using BLS.Syncing;
 
 [assembly: InternalsVisibleTo("BLS.SQLiteStorage.Tests")]
 namespace BLS.SQLiteStorage
@@ -29,24 +30,24 @@ namespace BLS.SQLiteStorage
         }
 
         public StorageCursor<T> FindInContainer<T>(string containerName, BlBinaryExpression filter = null, string sortProperty = null,
-            string sortOrder = null) where T : BlsPawn
+            string sortOrder = null, int batchSize = 200) where T : BlsPawn
         {
             throw new NotImplementedException();
         }
 
         public StorageCursor<T> SearchInContainer<T>(string containerName, List<string> propertiesToSearch, string term,
-            BlBinaryExpression filter = null, string sortProperty = null, string sortOrder = null) where T : BlsPawn
+            BlBinaryExpression filter = null, string sortProperty = null, string sortOrder = null, int batchSize = 200) where T : BlsPawn
         {
             throw new NotImplementedException();
         }
 
-        public int GetContainerCount(string containerName)
+        public int GetContainerCount(string containerName, BlBinaryExpression filter = null)
         {
             throw new NotImplementedException();
         }
 
         public StorageCursor<T> GetByRelation<T>(string fromId, string relationName, string containerName = null,
-            BlBinaryExpression filter = null, int batchSize = 200) where T : BlsPawn
+            BlBinaryExpression filter = null, string sortProperty = null, Sort sortDir = Sort.Asc, int batchSize = 200) where T : BlsPawn
         {
             throw new NotImplementedException();
         }
@@ -106,7 +107,7 @@ namespace BLS.SQLiteStorage
 
         #region Sync and Query
 
-        public Tuple<List<string>, List<string>> Sync(List<BlGraphContainer> containers, List<BlGraphRelation> relations)
+        public SyncPlan Sync(List<BlGraphContainer> containers, List<BlGraphRelation> relations, bool generatePlanOnly = false)
         {
             // 1. get the list of tables from SQLite
             // 2. for every container:

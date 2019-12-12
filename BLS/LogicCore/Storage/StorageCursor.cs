@@ -1,27 +1,26 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
-using ChangeTracking;
 
 namespace BLS
 {
     /// <summary>
-    /// Storage Cursor is the class you use to access pawns in storage as well as in BLS memory (pawns which need to be added for example)
+    /// Storage cursor is the main gate though which you retrieve pawns. Any collection
+    /// coming from the storage would be wrapped in a cursor. The results can be retrieved
+    /// using the <see cref="GetNextStorageBatch"/> method in pre-defined batches.
     /// </summary>
-    /// <typeparam name="T">Type of the business object</typeparam>
+    /// <typeparam name="T">Type of the business object - does not have to be a BlsPawn</typeparam>
     public class StorageCursor<T>
     {
         private string _cursorId;
         private bool _hasMoreInStorage;
         private int _batchSize;
-        private IBlStorageProvider _storageProvider;
+        private Bls _bls;
         
         internal  List<T> BlsInMemoryCursorBuffer;
-        internal List<T> StorageObjectBuffer;
+        internal readonly List<T> StorageObjectBuffer;
 
-        public StorageCursor(IBlStorageProvider storageProvider, List<T> itemsFromStorage, string cursorId, bool hasMore, int batchSize)
+        public StorageCursor(List<T> itemsFromStorage, string cursorId, bool hasMore, int batchSize)
         {
-            _storageProvider = storageProvider;
             StorageObjectBuffer = itemsFromStorage;
             _cursorId = cursorId;
             _hasMoreInStorage = hasMore;
@@ -30,7 +29,39 @@ namespace BLS
 
         public List<T> GetNextStorageBatch()
         {
-            return StorageObjectBuffer;
+            if (StorageObjectBuffer == null || StorageObjectBuffer.Count == 0)
+            {
+                return new List<T>();
+            }
+
+            if (StorageObjectBuffer[0] is BlsPawn)
+            {
+                var result = new List<BlsPawn>();
+                foreach (T item in StorageObjectBuffer)
+                {
+                    var pawn = item as BlsPawn;
+                    if (!_bls.ToUpdate.ContainsKey(pawn.GetId()))
+                    {
+                        _bls.ToUpdate.Add(pawn.GetId(), pawn);
+                    }
+                    result.Add(_bls.ToUpdate[pawn.GetId()]);
+                }
+                StorageObjectBuffer.Clear();
+                
+                // todo: load next batch into StorageObjectBuffer
+
+                return result as List<T>;
+            }
+            else
+            {
+                var result = new List<T>();
+                result.AddRange(StorageObjectBuffer);
+                StorageObjectBuffer.Clear();
+                
+                // todo: load next batch into StorageObjectBuffer
+                
+                return result;
+            }
         }
         
         public List<T> GetInMemoryPawns()
@@ -54,6 +85,12 @@ namespace BLS
         internal StorageCursor<T> AttachInMemoryPawns(List<T> pawns)
         {
             BlsInMemoryCursorBuffer = pawns;
+            return this;
+        }
+
+        internal StorageCursor<T> InjectBls(Bls bls)
+        {
+            _bls = bls;
             return this;
         }
 

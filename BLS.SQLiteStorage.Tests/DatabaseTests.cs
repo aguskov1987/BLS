@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.SQLite;
 using Xunit;
+// ReSharper disable UnusedVariable
 
 namespace BLS.SQLiteStorage.Tests
 {

@@ -169,6 +169,10 @@ namespace BLS
                         {
                             if (attribute is UsedForSoftDeletes)
                             {
+                                if (blProp.PropType != typeof(bool))
+                                {
+                                    throw new InvalidOperationException($"Only boolean type is allowed for the soft delete flag. You are trying to apply it to the property {blProp.Name}, which is of type {blProp.PropType}");
+                                }
                                 if (softDeleteFlagUsed)
                                 {
                                     throw new DuplicateSoftDeletionFlagError(

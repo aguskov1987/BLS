@@ -11,8 +11,10 @@ namespace BLS
     public abstract class BlsPawn
     {
         private string _id;
+
         [DoNoTrack]
         internal virtual Bls SystemRef { get; set; }
+
         public virtual DateTime Created { get; set; }
         public virtual DateTime LastTimeModified { get; set; }
 
