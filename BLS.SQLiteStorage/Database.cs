@@ -70,9 +70,10 @@ namespace BLS.SQLiteStorage
                         object convertedProp = Convert.ChangeType(value.Value.Item1, value.Value.Item2);
                         row.Add(value.Key, convertedProp);
                     }
-                    catch (Exception exception)
+                    catch (InvalidCastException exception)
                     {
-                        throw new InvalidOperationException("invalid cast");
+                        // TODO: replace with a custom error
+                        throw new InvalidCastException("invalid cast");
                     }
                 }
                 

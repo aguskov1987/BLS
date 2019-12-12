@@ -170,11 +170,8 @@ namespace BLS.SQLiteStorage.Tests
             List<Dictionary<string, object>> response = database.ExecuteSqlQuery(query, props);
 
             // Assert
-            Assert.NotNull(response);
-            Assert.Throws<KeyNotFoundException>(() =>
-            {
-                var test = response[0]["engine_volume"];
-            });
+            Assert.NotEmpty(response);
+            Assert.Equal(3, response[0].Count);
 
             if (db.State != ConnectionState.Closed)
             {
