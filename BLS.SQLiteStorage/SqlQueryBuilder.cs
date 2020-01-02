@@ -67,5 +67,85 @@ namespace BLS.SQLiteStorage
         {
             return $"PRAGMA table_info({table})";
         }
+
+        internal string SelectPawnsFromTable(
+            string tableName,
+            int offset,
+            int howMany,
+            BlBinaryExpression filter = null,
+            string sortColumn = null,
+            Sort sort = Sort.Asc)
+        {
+            string selectClause = $" SELECT * FROM {tableName} ";
+
+            string whereClause = string.Empty;
+            if (filter != null)
+            {
+                BuildWhereClauseFromFilter(filter, ref whereClause);
+            }
+
+            string sortClause = sortColumn == null ? " ORDER BY Id" : $" ORDER BY {sortColumn} {sort.ToString()} ";
+            string limitClause = $" LIMIT {howMany} OFFSET {offset} ";
+
+            return selectClause + whereClause + sortClause + limitClause;
+        }
+
+        private void BuildWhereClauseFromFilter(BlBinaryExpression filter, ref string str)
+        {
+            if (filter == null)
+            {
+                return;
+            }
+
+            string left = string.Empty;
+            string right = string.Empty;
+            string opr = TranslateOperator(filter.Operator);
+
+            if (filter.IsLeaf)
+            {
+                left = filter.PropName;
+                right = filter.Value.ToString();
+            }
+            else
+            {
+                BuildWhereClauseFromFilter(filter.Left, ref left);
+                BuildWhereClauseFromFilter(filter.Right, ref right);
+            }
+
+            str = $"WHERE ({left} {opr} {right})";
+        }
+
+        private string TranslateOperator(BlOperator filterOperator)
+        {
+            switch (filterOperator)
+            {
+                case BlOperator.And:
+                    return "AND";
+                    break;
+                case BlOperator.Or:
+                    return "OR";
+                    break;
+                case BlOperator.Eq:
+                    return "= ";
+                    break;
+                case BlOperator.NotEq:
+                    return "!=";
+                    break;
+                case BlOperator.Grt:
+                    return ">";
+                    break;
+                case BlOperator.Ls:
+                    return "<";
+                    break;
+                case BlOperator.GrtOrEq:
+                    return ">=";
+                    break;
+                case BlOperator.LsOrEq:
+                    return "<=";
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(filterOperator), filterOperator, null);
+            }
+        }
     }
 }
