@@ -8,6 +8,61 @@ namespace BLS.Tests
     public class RelationTests
     {
         [Fact]
+        public void should_add_in_memory_connection()
+        {
+            // Setup
+            var storedFirm = new LawFirm {Name = "LLP"};
+            storedFirm.SetId("firm_id");
+
+            var storageProviderMock = new Mock<IBlStorageProvider>();
+            storageProviderMock
+                .Setup(pr => pr.GetById<LawFirm>("law_firm_id", "LawFirm"))
+                .Returns(storedFirm);
+
+            var bls = new Bls(storageProviderMock.Object);
+            bls.RegisterBlPawns(new LawFirm(), new Lawyer(), new Assistant(), new Matter(), new Client());
+
+            // Act
+            LawFirm firm = bls.GetById<LawFirm>("law_firm_id");
+            
+            Lawyer lawyer = bls.SpawnNew<Lawyer>();
+            lawyer.FirstName = "George";
+            firm.Lawyers.Connect(lawyer);
+
+            // Assert
+            Assert.NotEmpty(firm.SystemRef.ToAddBuffer);
+            Assert.NotEmpty(firm.SystemRef.ToConnect);
+        }
+        
+        [Fact]
+        public void should_remove_in_memory_connection()
+        {
+            // Setup
+            var storedFirm = new LawFirm {Name = "LLP"};
+            storedFirm.SetId("firm_id");
+
+            var storageProviderMock = new Mock<IBlStorageProvider>();
+            storageProviderMock
+                .Setup(pr => pr.GetById<LawFirm>("law_firm_id", "LawFirm"))
+                .Returns(storedFirm);
+
+            var bls = new Bls(storageProviderMock.Object);
+            bls.RegisterBlPawns(new LawFirm(), new Lawyer(), new Assistant(), new Matter(), new Client());
+
+            // Act
+            LawFirm firm = bls.GetById<LawFirm>("law_firm_id");
+            
+            Lawyer lawyer = bls.SpawnNew<Lawyer>();
+            lawyer.FirstName = "George";
+            firm.Lawyers.Connect(lawyer);
+            
+            firm.Lawyers.Disconnect(lawyer);
+
+            // Assert
+            Assert.NotEmpty(firm.SystemRef.ToConnect);
+        }
+        
+        [Fact]
         public void should_find_related_pawns_in_bls_buffer_no_filter_no_soft_delete()
         {
             // Setup
@@ -171,7 +226,7 @@ namespace BLS.Tests
             existingLawyerInStorage.FirstName = "Peter";
             var traceableLawyer = existingLawyerInStorage.AsTrackable();
             cursor.StorageObjectBuffer.Add(traceableLawyer);
-            bls.ToUpdate.Add("lawyer_id", traceableLawyer);
+            bls.ToUpdate.Add(traceableLawyer);
 
             StorageCursor<Lawyer> cr = firm.Lawyers.Find();
             storageProviderMock.Verify();

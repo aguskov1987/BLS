@@ -87,6 +87,39 @@ namespace BLS.Tests
         }
 
         [Fact]
+        public void should_be_able_to_find_pawns_if_sort_parameter_is_supplied()
+        {
+            // Setup
+            var basicPawnContainer = new BlGraphContainer
+            {
+                BlContainerName = "BasicPawn",
+                StorageContainerName = "BasicPawn",
+                Properties = new List<BlContainerProp>()
+            };
+            var containerList = new List<BlGraphContainer> {basicPawnContainer};
+            var graphMock = new Mock<IBlGraph>();
+            graphMock.Setup(graph => graph.GetStorageContainerNameForPawn(It.IsAny<BasicPawn>())).Returns("BasicPawn");
+            graphMock.Setup(graph => graph.CompiledCollections).Returns(containerList);
+
+            var cursor = new StorageCursor<BasicPawn>();
+            var storageProviderMock = new Mock<IBlStorageProvider>();
+            
+            storageProviderMock
+                .Setup(provider => provider.FindInContainer<BasicPawn>(It.IsAny<string>(), null, "Name", "Asc", 200))
+                .Returns(cursor).Verifiable();
+            
+            var bls = new Bls(storageProviderMock.Object, graphMock.Object);
+            bls.RegisterBlPawns(new BasicPawn());
+
+            // Act
+            var resultCursor = bls.Find<BasicPawn>(filter: null, sortProperty: p => p.Name);
+
+            // Assert
+            Assert.NotNull(resultCursor);
+            storageProviderMock.Verify();
+        }
+
+        [Fact]
         public void should_be_able_to_find_pawns_based_on_single_evaluated_filter()
         {
             // Setup
@@ -316,6 +349,7 @@ namespace BLS.Tests
 
             // Assert
             Assert.NotNull(basicPawn);
+            Assert.Single(bls.ToAddBuffer);
         }
     }
 }

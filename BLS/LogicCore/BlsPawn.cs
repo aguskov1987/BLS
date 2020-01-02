@@ -27,5 +27,31 @@ namespace BLS
         {
             return _id;
         }
+
+        public override bool Equals(object obj)
+        {
+            if (ReferenceEquals(obj, this))
+            {
+                return true;
+            }
+
+            if (!(obj is BlsPawn other))
+            {
+                return false;
+            }
+
+            if (_id == null || other._id == null)
+            {
+                return false;
+            }
+
+            // Let's be exact when comparing strings:
+            return string.Equals(_id, other._id, StringComparison.Ordinal);
+        }
+
+        public override int GetHashCode()
+        {
+            return _id == null ? 0 : _id.GetHashCode();
+        }
     }
 }
