@@ -50,19 +50,19 @@ namespace BLS.SQLiteStorage
             return statement;
         }
         
-        [ExcludeFromCodeCoverage]
+        [ExcludeFromCodeCoverage] // returns simple string
         internal string DropTable(BlGraphContainer container)
         {
             return $"DROP TABLE {container.StorageContainerName};";
         }
 
-        [ExcludeFromCodeCoverage]
+        [ExcludeFromCodeCoverage] // returns simple string
         internal string GetExistingTables()
         {
             return " SELECT name FROM sqlite_master WHERE type ='table' AND name NOT LIKE 'sqlite_%';";
         }
 
-        [ExcludeFromCodeCoverage]
+        [ExcludeFromCodeCoverage] // returns simple string
         internal string GetTableColumns(string table)
         {
             return $"PRAGMA table_info({table})";
@@ -76,16 +76,17 @@ namespace BLS.SQLiteStorage
             string sortColumn = null,
             Sort sort = Sort.Asc)
         {
-            string selectClause = $" SELECT * FROM {tableName} ";
+            string selectClause = $"SELECT * FROM {tableName} ";
 
             string whereClause = string.Empty;
             if (filter != null)
             {
                 BuildWhereClauseFromFilter(filter, ref whereClause);
+                whereClause = "WHERE " + whereClause;
             }
 
-            string sortClause = sortColumn == null ? " ORDER BY Id" : $" ORDER BY {sortColumn} {sort.ToString()} ";
-            string limitClause = $" LIMIT {howMany} OFFSET {offset} ";
+            string sortClause = sortColumn == null ? " ORDER BY Id" : $" ORDER BY {sortColumn} {sort.ToString()}";
+            string limitClause = $" LIMIT {howMany} OFFSET {offset}";
 
             return selectClause + whereClause + sortClause + limitClause;
         }
@@ -112,9 +113,10 @@ namespace BLS.SQLiteStorage
                 BuildWhereClauseFromFilter(filter.Right, ref right);
             }
 
-            str = $"WHERE ({left} {opr} {right})";
+            str = $"({left} {opr} {right})";
         }
 
+        [ExcludeFromCodeCoverage] // enum in -> string out: nothing special
         private string TranslateOperator(BlOperator filterOperator)
         {
             switch (filterOperator)
@@ -126,7 +128,7 @@ namespace BLS.SQLiteStorage
                     return "OR";
                     break;
                 case BlOperator.Eq:
-                    return "= ";
+                    return "=";
                     break;
                 case BlOperator.NotEq:
                     return "!=";

@@ -125,7 +125,13 @@ namespace BLS.SQLiteStorage
             // 6. collect the unused joins
             // 7. if the flag is set, drop the unused relations
             // 8. if the flag is set, drop the unused containers
-            throw new NotImplementedException();
+
+            if (containers == null || containers.Count == 0)
+            {
+                throw new Exception("No containers are provided to sync");
+            }
+
+            return null;
         }
         
         public StorageCursor<T> ExecuteQuery<T>(string query) where T : new()

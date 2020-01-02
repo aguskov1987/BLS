@@ -18,11 +18,13 @@ namespace BLS
     /// </summary>
     internal class BlGraph : IBlGraph
     {
-        private bool _compiled;
         private readonly List<BlGraphContainer> _compiledCollections = new List<BlGraphContainer>();
         private readonly List<BlGraphRelation> _compiledRelations = new List<BlGraphRelation>();
+        private bool _compiled;
         private BlsPawn[] _pawns;
         private IStorageNamingEncoder _storageNamingEncoder;
+
+        #region IBlGraph Members
 
         public void RegisterPawns(BlsPawn[] pawns)
         {
@@ -69,7 +71,9 @@ namespace BLS
                 relation.Multiplexer);
         }
 
-        public void VerifyUniqueNames(BlsPawn[] pawns)
+        #endregion
+
+        private void VerifyUniqueNames(BlsPawn[] pawns)
         {
             var names = pawns.Select(p => p.GetType().Name).ToArray();
             var distinctNames = names.Distinct().ToArray();
@@ -336,12 +340,5 @@ namespace BLS
         }
 
         #endregion
-    }
-
-    internal class DuplicateRelationInPawnError : Exception
-    {
-        public DuplicateRelationInPawnError(string message) : base(message)
-        {
-        }
     }
 }
