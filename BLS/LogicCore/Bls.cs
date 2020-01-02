@@ -7,6 +7,7 @@ using System.Linq.Expressions;
 using System.Runtime.CompilerServices;
 using BLS.Syncing;
 using ChangeTracking;
+// ReSharper disable PossibleUnintendedReferenceComparison
 
 // ReSharper disable InvalidXmlDocComment
 
@@ -20,17 +21,17 @@ namespace BLS
         internal readonly IBlStorageProvider StorageProvider;
 
         // new pawns to save to storage
-        internal readonly List<BlsPawn> ToAddBuffer = new List<BlsPawn>();
+        internal readonly HashSet<BlsPawn> ToAddBuffer = new HashSet<BlsPawn>();
 
         // changes in relations
-        internal readonly List<Connection> ToConnect = new List<Connection>();
-        internal readonly List<Connection> ToDisconnect = new List<Connection>();
+        internal readonly HashSet<Connection> ToConnect = new HashSet<Connection>();
+        internal readonly HashSet<Connection> ToDisconnect = new HashSet<Connection>();
 
         // pawns to remove from storage
-        internal readonly List<BlsPawn> ToRemove = new List<BlsPawn>();
+        internal readonly HashSet<BlsPawn> ToRemove = new HashSet<BlsPawn>();
 
         // pawns retrieved from storage and assumed to be updated
-        internal readonly Dictionary<string, BlsPawn> ToUpdate = new Dictionary<string, BlsPawn>();
+        internal readonly HashSet<BlsPawn> ToUpdate = new HashSet<BlsPawn>();
         internal IBlGraph Graph;
 
         // dependency on internal Expression implementation as these types are internal and are subject to changes
@@ -182,8 +183,8 @@ namespace BLS
                 .Cast<TPawn>();
 
             var updates = ToUpdate
-                .Where(p => p.Value.GetType() == typeof(TPawn))
-                .Select(p => (TPawn) p.Value);
+                .Where(p => p.GetType() == typeof(TPawn))
+                .Select(p => (TPawn) p);
 
             
             if (filter == null)
@@ -248,7 +249,7 @@ namespace BLS
                 T result = StorageProvider.GetById<T>(id, container);
                 result.SystemRef = this;
                 var traceable = result.AsTrackable();
-                ToUpdate.Add(result.GetId(), traceable);
+                ToUpdate.Add(traceable);
                 return traceable;
             }
 
@@ -272,28 +273,30 @@ namespace BLS
         }
 
         /// <summary>
-        /// Call this method to delete a pawn. By default, if the pawn is still connected to other pawns
-        /// throw a relation, the method will throw an exception. If you want to remove any relations for
-        /// the pawn being deleted, you can set the default <param name="errorOutIfConnected"></param> parameter
-        /// to false. In this case, any relations the pawn is in, will be removed before the pawn itself is
-        /// deleted.
+        /// Call this method to delete a pawn. Please keep in mind that all relations associated
+        /// with this pawn will also be removed.
         /// </summary>
         /// <param name="pawn">Pawn to delete</param>
-        /// <param name="errorOutIfConnected"></param>
         /// <typeparam name="TPawn">Type of the pawn</typeparam>
         /// <remarks>Deletions will NOT be saved in storage unless you call the<see cref="PersistChanges()"/> method.
         /// </remarks>
-        public void Delete<TPawn>(TPawn pawn, bool errorOutIfConnected = true) where TPawn : BlsPawn
+        public void Delete<TPawn>(TPawn pawn) where TPawn : BlsPawn
         {
-            ToConnect.RemoveAll(connection => connection.From == pawn || connection.To == pawn);
-            ToDisconnect.RemoveAll(connection => connection.From == pawn || connection.To == pawn);
-            if (ToAddBuffer.Contains(pawn))
+            ToRemove.Add(pawn);
+            
+            ToConnect.RemoveWhere(con => con.From == pawn || con.To == pawn);
+            ToDisconnect.RemoveWhere(con => con.From == pawn || con.To == pawn);
+
+            // case when the pawn is not saved yet
+            if (pawn.GetId() == null)
             {
+                //remove if it was added earlier
                 ToAddBuffer.Remove(pawn);
             }
             else
             {
-                ToRemove.Add(pawn);
+                // otherwise remove from the updates (in case it was added earlier)
+                ToUpdate.Remove(pawn);
             }
         }
 
@@ -309,6 +312,12 @@ namespace BLS
             {
                 throw new NoStorageProviderRegisteredError();
             }
+            
+            // 1. verify that all pawns meet the restrictions
+            // 2. add new pawns        >>
+            // 3. add new connections  >> in transaction
+            // 4. remove connections   >>
+            // 5. remove pawns         >>
         }
 
         /// <summary>
@@ -326,17 +335,32 @@ namespace BLS
         {
             Graph.OverrideStorageNamingEncoder(encoder);
         }
-
-        [ExcludeFromCodeCoverage] // pass through
+        
         internal void Connect(BlsPawn source, BlsPawn target, string relation)
         {
-            ToConnect.Add(new Connection {From = source, To = target, RelationName = relation});
+            if (ToRemove.Contains(source) || ToRemove.Contains(target))
+            {
+                throw new InvalidOperationException("you are trying to work with a pawn which has been deleted.");
+            }
+            
+            var con = new Connection {From = source, To = target, RelationName = relation};
+            ToConnect.Add(con);
+            ToDisconnect.Remove(con);
         }
-
+        
         internal void Disconnect(BlsPawn source, BlsPawn target, string relation)
         {
-            ToConnect.RemoveAll(c => c.From == source && c.To == target && c.RelationName == relation);
-            ToDisconnect.Add(new Connection {From = source, To = target, RelationName = relation});
+            if (ToRemove.Contains(source) || ToRemove.Contains(target))
+            {
+                throw new InvalidOperationException("you are trying to work with a pawn which has been deleted.");
+            }
+            
+            var con = new Connection {From = source, To = target, RelationName = relation};
+            if (con.From.GetId() != null && con.To.GetId() != null)
+            {
+                ToDisconnect.Add(con);
+            }
+            ToConnect.Remove(con);
         }
 
         internal BlBinaryExpression ResolveFilterExpression<TPawn>(Expression<Func<TPawn, bool>> filter)
@@ -504,7 +528,6 @@ namespace BLS
                 }
                 default:
                 {
-                    //todo: replace with custom exception
                     throw new NotSupportedException("incorrect binary operator");
                 }
             }
@@ -519,7 +542,7 @@ namespace BLS
 
             return resultExpression;
         }
-        
+
         private List<string> ResolveSearchProperties<TPawn>(Expression<Func<TPawn,string[]>> searchProperties) where TPawn : BlsPawn, new()
         {
             NewArrayExpression newArray;

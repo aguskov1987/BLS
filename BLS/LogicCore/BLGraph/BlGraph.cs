@@ -18,7 +18,6 @@ namespace BLS
     /// </summary>
     internal class BlGraph : IBlGraph
     {
-        private bool _compiled;
         private readonly List<BlGraphContainer> _compiledCollections = new List<BlGraphContainer>();
         private readonly List<BlGraphRelation> _compiledRelations = new List<BlGraphRelation>();
         private BlsPawn[] _pawns;
@@ -45,8 +44,6 @@ namespace BLS
             }
 
             ResolveRelations();
-
-            _compiled = true;
         }
 
         public List<BlGraphContainer> CompiledCollections => _compiledCollections;
@@ -171,7 +168,7 @@ namespace BLS
                             {
                                 if (blProp.PropType != typeof(bool))
                                 {
-                                    throw new InvalidOperationException($"Only boolean type is allowed for the soft delete flag. You are trying to apply it to the property {blProp.Name}, which is of type {blProp.PropType}");
+                                    throw new InvalidPropertyTypeForSoftDelete($"Only boolean type is allowed for the soft delete flag. You are trying to apply it to the property {blProp.Name}, which is of type {blProp.PropType}");
                                 }
                                 if (softDeleteFlagUsed)
                                 {
@@ -272,7 +269,7 @@ namespace BLS
         {
             var node = new LoseNode
             {
-                PawnRef = pawn, Name = pawn.GetType().Name, ConnectionPoints = new List<LoseEnd>()
+                Name = pawn.GetType().Name, ConnectionPoints = new List<LoseEnd>()
             };
 
             List<PropertyInfo> properties = pawn.GetType().GetProperties().ToList();
@@ -330,18 +327,10 @@ namespace BLS
 
         class LoseNode
         {
-            public BlsPawn PawnRef { get; set; }
             public string Name { get; set; }
             public List<LoseEnd> ConnectionPoints { get; set; }
         }
 
         #endregion
-    }
-
-    internal class DuplicateRelationInPawnError : Exception
-    {
-        public DuplicateRelationInPawnError(string message) : base(message)
-        {
-        }
     }
 }

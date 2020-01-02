@@ -1,5 +1,8 @@
-﻿namespace BLS
+﻿using System.Diagnostics.CodeAnalysis;
+
+namespace BLS
 {
+    [ExcludeFromCodeCoverage]
     public class BlGraphRelation
     {
         public BlGraphContainer SourceContainer { get; set; }

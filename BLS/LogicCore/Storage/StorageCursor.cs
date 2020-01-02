@@ -39,12 +39,7 @@ namespace BLS
                 var result = new List<BlsPawn>();
                 foreach (T item in StorageObjectBuffer)
                 {
-                    var pawn = item as BlsPawn;
-                    if (!_bls.ToUpdate.ContainsKey(pawn.GetId()))
-                    {
-                        _bls.ToUpdate.Add(pawn.GetId(), pawn);
-                    }
-                    result.Add(_bls.ToUpdate[pawn.GetId()]);
+                    _bls.ToUpdate.Add(item as BlsPawn);
                 }
                 StorageObjectBuffer.Clear();
                 
