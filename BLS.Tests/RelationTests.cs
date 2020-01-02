@@ -59,7 +59,7 @@ namespace BLS.Tests
             firm.Lawyers.Disconnect(lawyer);
 
             // Assert
-            Assert.NotEmpty(firm.SystemRef.ToConnect);
+            Assert.Empty(firm.SystemRef.ToConnect);
         }
         
         [Fact]
