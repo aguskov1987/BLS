@@ -17,9 +17,23 @@ namespace BLS.SQLiteStorage.Tests
             // Act & Assert
             Assert.Throws<Exception>(() => { provider.Sync(containers, relations); });
         }
-        
-        // should sync one brand new collection (no relations)
-        // should sync two brand new collections (no relations)
-        // should sync two brand new collection and a relation between the two
+
+        // should sync the first brand new collection (no relations)
+        // should sync the second brand new collections (no relations)
+        // should sync the relation between the two
+        // should sync a third brand new collection
+
+        // should sync adding a property to the third collection
+        // should sync removing a property from the third collection (with retention)
+        // should sync removing a property from the third collection (without retention)
+        // should sync adding a previously deleted property to the third collection (with retention)
+        // should sync adding a previously deleted property to the third collection (without retention)
+
+        // should sync removing the first collection (should also remove the relation) (with retention)
+        // should sync removing the first collection (should also remove the relation) (without retention)
+        // should sync removing the relation between the first two collections (with retention)
+        // should sync removing the relation between the first two collections (without retention)
+        // should sync adding a previously deleted first collection (with retention)
+        // should sync adding a previously deleted first collection (without retention)
     }
 }

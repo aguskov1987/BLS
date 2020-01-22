@@ -120,9 +120,9 @@ namespace BLS.SQLiteStorage
             // 3. collect the unused tables
             // 4. get the list of relation tables (joins)
             // 5. for every relation:
-            //     a. if the join does not exist, create new join
-            //     b. if the join exists, leave it
-            // 6. collect the unused joins
+            //     a. if the join table does not exist, create new join
+            //     b. if the join table exists, leave it
+            // 6. collect the unused join tables
             // 7. if the flag is set, drop the unused relations
             // 8. if the flag is set, drop the unused containers
 
